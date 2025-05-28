@@ -2,23 +2,13 @@ export interface Movie {
   id: number;
   title: string;
   overview: string;
-  poster_path: string;
-  backdrop_path: string;
-  poster_url?: string;
-  backdrop_url?: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
   release_date: string;
   vote_average: number;
   vote_count: number;
-  genre_ids: number[];
+  genre_ids?: number[];
   genres?: Genre[];
-  adult: boolean;
-  original_language: string;
-  original_title: string;
-  popularity: number;
-  video: boolean;
-}
-
-export interface MovieDetails extends Movie {
   runtime?: number;
   budget?: number;
   revenue?: number;
@@ -26,22 +16,18 @@ export interface MovieDetails extends Movie {
   tagline?: string;
   homepage?: string;
   imdb_id?: string;
+  original_language?: string;
+  original_title?: string;
+  popularity?: number;
   production_companies?: ProductionCompany[];
   production_countries?: ProductionCountry[];
   spoken_languages?: SpokenLanguage[];
-  credits?: {
-    cast: CastMember[];
-    crew: CrewMember[];
-  };
-  videos?: {
-    results: Video[];
-  };
-  similar?: {
-    results: Movie[];
-  };
-  recommendations?: {
-    results: Movie[];
-  };
+  credits?: Credits;
+  videos?: Videos;
+  reviews?: Reviews;
+  similar?: MovieResponse;
+  recommendations?: MovieResponse;
+  isBookmarked?: boolean;
 }
 
 export interface Genre {
@@ -67,6 +53,11 @@ export interface SpokenLanguage {
   name: string;
 }
 
+export interface Credits {
+  cast: CastMember[];
+  crew: CrewMember[];
+}
+
 export interface CastMember {
   id: number;
   name: string;
@@ -83,6 +74,10 @@ export interface CrewMember {
   profile_path: string | null;
 }
 
+export interface Videos {
+  results: Video[];
+}
+
 export interface Video {
   id: string;
   key: string;
@@ -90,75 +85,40 @@ export interface Video {
   site: string;
   type: string;
   official: boolean;
+  published_at: string;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-  pagination?: {
-    page: number;
-    totalPages: number;
-    totalResults: number;
+export interface Reviews {
+  results: Review[];
+  total_pages: number;
+  total_results: number;
+}
+
+export interface Review {
+  id: string;
+  author: string;
+  author_details: {
+    name: string;
+    username: string;
+    avatar_path: string | null;
+    rating: number | null;
   };
+  content: string;
+  created_at: string;
+  updated_at: string;
+  url: string;
 }
 
-export interface MoviesResponse {
+export interface MovieResponse {
   page: number;
   results: Movie[];
   total_pages: number;
   total_results: number;
 }
 
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  profile: {
-    avatar?: string;
-    bio?: string;
-    favoriteGenres: string[];
-  };
-  movieLogs: MovieLog[];
-}
-
-export interface MovieLog {
+export interface Bookmark {
   movieId: number;
-  status: "watched" | "watching" | "want_to_watch" | "dropped";
-  rating?: number;
-  review?: string;
+  movieTitle: string;
+  moviePoster: string;
   dateAdded: string;
-  dateWatched?: string;
-}
-
-export type MovieStatus = "watched" | "watching" | "want_to_watch" | "dropped";
-
-// Auth types
-export interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-  confirmPassword?: string;
-}
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  data: {
-    user: User;
-    token: string;
-  };
-  message?: string;
-}
-
-export interface ProfileData {
-  username?: string;
-  email?: string;
-  bio?: string;
-  favoriteGenres?: string[];
-  avatar?: string;
 }

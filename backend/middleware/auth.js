@@ -3,6 +3,7 @@ const User = require("../models/User");
 
 const auth = async (req, res, next) => {
   try {
+    // Get token from header
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
@@ -12,9 +13,11 @@ const auth = async (req, res, next) => {
       });
     }
 
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
 
+    // Get user from database
+    const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -22,9 +25,17 @@ const auth = async (req, res, next) => {
       });
     }
 
-    req.user = decoded;
+    // Add user to request object
+    req.user = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+    };
+
     next();
   } catch (error) {
+    console.error("Auth middleware error:", error.message);
+
     if (error.name === "JsonWebTokenError") {
       return res.status(401).json({
         success: false,
@@ -41,29 +52,9 @@ const auth = async (req, res, next) => {
 
     res.status(500).json({
       success: false,
-      message: "Token verification failed.",
+      message: "Authentication failed.",
     });
   }
 };
 
-// Optional auth middleware (doesn't require token)
-const optionalAuth = async (req, res, next) => {
-  try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-
-    if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id);
-      if (user) {
-        req.user = decoded;
-      }
-    }
-
-    next();
-  } catch (error) {
-    // Continue without authentication
-    next();
-  }
-};
-
-module.exports = { auth, optionalAuth };
+module.exports = auth;

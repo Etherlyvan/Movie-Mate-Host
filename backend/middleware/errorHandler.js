@@ -1,31 +1,68 @@
 const errorHandler = (err, req, res, next) => {
-  console.error("Error:", err.stack);
-
-  // Default error
-  let error = { ...err };
-  error.message = err.message;
-
-  // Mongoose bad ObjectId
-  if (err.name === "CastError") {
-    const message = "Resource not found";
-    error = { message, statusCode: 404 };
-  }
-
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const message = "Duplicate field value entered";
-    error = { message, statusCode: 400 };
-  }
+  console.error("Error Handler:", err.stack);
 
   // Mongoose validation error
   if (err.name === "ValidationError") {
-    const message = Object.values(err.errors).map((val) => val.message);
-    error = { message, statusCode: 400 };
+    const errors = Object.values(err.errors).map((e) => ({
+      field: e.path,
+      message: e.message,
+      value: e.value,
+    }));
+    return res.status(400).json({
+      success: false,
+      message: "Validation Error",
+      errors,
+    });
   }
 
-  res.status(error.statusCode || 500).json({
+  // Mongoose duplicate key error
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
+    return res.status(409).json({
+      success: false,
+      message: `${
+        field.charAt(0).toUpperCase() + field.slice(1)
+      } already exists`,
+    });
+  }
+
+  // Mongoose cast error (invalid ObjectId)
+  if (err.name === "CastError") {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID format",
+    });
+  }
+
+  // JWT errors
+  if (err.name === "JsonWebTokenError") {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid token",
+    });
+  }
+
+  if (err.name === "TokenExpiredError") {
+    return res.status(401).json({
+      success: false,
+      message: "Token expired",
+    });
+  }
+
+  // TMDB API errors
+  if (err.message.includes("TMDB API Error")) {
+    return res.status(503).json({
+      success: false,
+      message: "External API service unavailable",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+
+  // Default error
+  res.status(err.status || 500).json({
     success: false,
-    message: error.message || "Server Error",
+    message: err.message || "Internal Server Error",
+    error: process.env.NODE_ENV === "development" ? err.stack : undefined,
   });
 };
 

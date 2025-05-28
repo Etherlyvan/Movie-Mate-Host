@@ -1,7 +1,9 @@
+// frontend/src/stores/authStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface User {
+  _id: string;
   id: string;
   username: string;
   email: string;
@@ -9,6 +11,8 @@ interface User {
     avatar?: string;
     bio?: string;
     favoriteGenres: string[];
+    dateOfBirth?: string;
+    country?: string;
   };
   preferences: {
     theme: string;
@@ -18,6 +22,8 @@ interface User {
       push: boolean;
     };
   };
+  createdAt: string;
+  lastLogin?: string;
 }
 
 interface AuthState {
@@ -25,6 +31,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (
     username: string,
@@ -34,6 +41,7 @@ interface AuthState {
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   checkAuth: () => Promise<void>;
+  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -43,12 +51,16 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isLoading: false,
       isAuthenticated: false,
+      error: null,
 
       login: async (email: string, password: string) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`,
+            `${
+              process.env.NEXT_PUBLIC_API_BASE_URL ||
+              "http://localhost:3001/api"
+            }/auth/login`,
             {
               method: "POST",
               headers: {
@@ -64,23 +76,38 @@ export const useAuthStore = create<AuthState>()(
             throw new Error(data.message || "Login failed");
           }
 
+          // Store token in localStorage
+          if (typeof window !== "undefined") {
+            localStorage.setItem("token", data.data.token);
+          }
+
           set({
             user: data.data.user,
             token: data.data.token,
             isAuthenticated: true,
             isLoading: false,
+            error: null,
           });
-        } catch (error) {
-          set({ isLoading: false });
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error.message || "Login failed",
+            isAuthenticated: false,
+            user: null,
+            token: null,
+          });
           throw error;
         }
       },
 
       register: async (username: string, email: string, password: string) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`,
+            `${
+              process.env.NEXT_PUBLIC_API_BASE_URL ||
+              "http://localhost:3001/api"
+            }/auth/register`,
             {
               method: "POST",
               headers: {
@@ -93,7 +120,19 @@ export const useAuthStore = create<AuthState>()(
           const data = await response.json();
 
           if (!response.ok) {
+            // Handle validation errors
+            if (data.errors && Array.isArray(data.errors)) {
+              const errorMessages = data.errors
+                .map((err: any) => err.message)
+                .join(", ");
+              throw new Error(errorMessages);
+            }
             throw new Error(data.message || "Registration failed");
+          }
+
+          // Store token in localStorage
+          if (typeof window !== "undefined") {
+            localStorage.setItem("token", data.data.token);
           }
 
           set({
@@ -101,18 +140,31 @@ export const useAuthStore = create<AuthState>()(
             token: data.data.token,
             isAuthenticated: true,
             isLoading: false,
+            error: null,
           });
-        } catch (error) {
-          set({ isLoading: false });
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error.message || "Registration failed",
+            isAuthenticated: false,
+            user: null,
+            token: null,
+          });
           throw error;
         }
       },
 
       logout: () => {
+        // Remove token from localStorage
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("token");
+        }
+
         set({
           user: null,
           token: null,
           isAuthenticated: false,
+          error: null,
         });
       },
 
@@ -127,14 +179,29 @@ export const useAuthStore = create<AuthState>()(
 
       checkAuth: async () => {
         const { token } = get();
-        if (!token) return;
+        if (!token) {
+          // Check localStorage for token
+          if (typeof window !== "undefined") {
+            const storedToken = localStorage.getItem("token");
+            if (!storedToken) return;
+
+            set({ token: storedToken });
+          } else {
+            return;
+          }
+        }
 
         try {
           const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/me`,
+            `${
+              process.env.NEXT_PUBLIC_API_BASE_URL ||
+              "http://localhost:3001/api"
+            }/auth/me`,
             {
               headers: {
-                Authorization: `Bearer ${token}`,
+                Authorization: `Bearer ${
+                  token || localStorage.getItem("token")
+                }`,
               },
             }
           );
@@ -144,24 +211,35 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: data.data.user,
               isAuthenticated: true,
+              error: null,
             });
           } else {
             // Token is invalid
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("token");
+            }
             set({
               user: null,
               token: null,
               isAuthenticated: false,
+              error: null,
             });
           }
         } catch (error) {
           console.error("Auth check failed:", error);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("token");
+          }
           set({
             user: null,
             token: null,
             isAuthenticated: false,
+            error: null,
           });
         }
       },
+
+      clearError: () => set({ error: null }),
     }),
     {
       name: "auth-storage",

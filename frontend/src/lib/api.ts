@@ -1,3 +1,4 @@
+// frontend/src/lib/api.ts
 import axios from "axios";
 
 const API_BASE_URL =
@@ -37,7 +38,10 @@ api.interceptors.response.use(
       // Handle unauthorized access
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
-        window.location.href = "/login";
+        // Only redirect if not already on login page
+        if (!window.location.pathname.includes("/login")) {
+          window.location.href = "/login";
+        }
       }
     }
     return Promise.reject(error);
@@ -59,8 +63,24 @@ interface LoginCredentials {
 interface ProfileData {
   username?: string;
   email?: string;
-  bio?: string;
-  favoriteGenres?: string[];
+  profile?: {
+    bio?: string;
+    favoriteGenres?: string[];
+    country?: string;
+  };
+  preferences?: {
+    theme?: string;
+    language?: string;
+    notifications?: {
+      email?: boolean;
+      push?: boolean;
+    };
+  };
+}
+
+interface BookmarkData {
+  movieTitle: string;
+  moviePoster: string;
 }
 
 // API functions
@@ -82,8 +102,19 @@ export const movieApi = {
   // Get top rated movies
   getTopRated: (page = 1) => api.get(`/movies/top-rated?page=${page}`),
 
+  // Get upcoming movies
+  getUpcoming: (page = 1) => api.get(`/movies/upcoming?page=${page}`),
+
   // Get genres
   getGenres: () => api.get("/movies/genres"),
+
+  // Get movies by genre
+  getByGenre: (genreId: string | number, page = 1) =>
+    api.get(`/movies/genre/${genreId}?page=${page}`),
+
+  // Get movie recommendations
+  getRecommendations: (id: string | number, page = 1) =>
+    api.get(`/movies/${id}/recommendations?page=${page}`),
 };
 
 export const authApi = {
@@ -93,6 +124,10 @@ export const authApi = {
     api.post("/auth/login", credentials),
 
   logout: () => api.post("/auth/logout"),
+
+  getMe: () => api.get("/auth/me"),
+
+  refreshToken: () => api.post("/auth/refresh"),
 };
 
 export const userApi = {
@@ -102,7 +137,19 @@ export const userApi = {
     api.put("/users/profile", profileData),
 
   getWatchlist: () => api.get("/users/watchlist"),
+
+  // Bookmark functions
+  getBookmarks: () => api.get("/users/bookmarks"),
+
+  addBookmark: (movieId: string | number, bookmarkData: BookmarkData) =>
+    api.post(`/users/bookmarks/${movieId}`, bookmarkData),
+
+  removeBookmark: (movieId: string | number) =>
+    api.delete(`/users/bookmarks/${movieId}`),
+
+  checkBookmark: (movieId: string | number) =>
+    api.get(`/users/bookmarks/check/${movieId}`),
 };
 
 // Export types for use in components
-export type { RegisterData, LoginCredentials, ProfileData };
+export type { RegisterData, LoginCredentials, ProfileData, BookmarkData };

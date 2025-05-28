@@ -6,6 +6,7 @@ import { Movie } from "@/types";
 import { getImageUrl, formatRating, getYearFromDate } from "@/lib/utils";
 import { TrendingUp, Star } from "lucide-react";
 import Link from "next/link";
+import BookmarkButton from "@/components/ui/BookmarkButton";
 
 export default function MoviesPage() {
   const [activeTab, setActiveTab] = useState<
@@ -114,32 +115,39 @@ export default function MoviesPage() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             {movies.map((movie) => (
-              <Link
-                key={movie.id}
-                href={`/movies/${movie.id}`}
-                className="group"
-              >
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                  <div className="aspect-[2/3] bg-gray-200 dark:bg-gray-700 relative">
-                    <img
-                      src={getImageUrl(movie.poster_path)}
-                      alt={movie.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded-full">
-                      ⭐ {formatRating(movie.vote_average)}
+              <div key={movie.id} className="group relative">
+                <Link href={`/movies/${movie.id}`}>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                    <div className="aspect-[2/3] bg-gray-200 dark:bg-gray-700 relative">
+                      <img
+                        src={getImageUrl(movie.poster_path)}
+                        alt={movie.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded-full">
+                        ⭐ {formatRating(movie.vote_average)}
+                      </div>
+                      {/* Bookmark Button */}
+                      <div className="absolute top-2 left-2">
+                        <BookmarkButton
+                          movieId={movie.id}
+                          movieTitle={movie.title}
+                          moviePoster={movie.poster_path || ""}
+                          size="sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {movie.title}
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">
+                        {getYearFromDate(movie.release_date)}
+                      </p>
                     </div>
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {movie.title}
-                    </h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs">
-                      {getYearFromDate(movie.release_date)}
-                    </p>
-                  </div>
-                </div>
-              </Link>
+                </Link>
+              </div>
             ))}
           </div>
 

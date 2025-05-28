@@ -1,3 +1,4 @@
+// backend/server.js
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -27,18 +28,47 @@ if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
 
-// Database connection
-if (process.env.MONGODB_URI) {
-  mongoose
-    .connect(process.env.MONGODB_URI)
-    .then(() => console.log("✅ MongoDB connected"))
-    .catch((err) => console.error("❌ MongoDB connection error:", err));
-} else {
-  console.log("⚠️ MongoDB URI not provided, running without database");
-}
+// Database connection with better error handling
+const connectDB = async () => {
+  try {
+    if (!process.env.MONGODB_URI) {
+      console.log("⚠️ MongoDB URI not provided, running without database");
+      return;
+    }
 
-// Health check
-app.get("/health", (req, res) => {
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log(`📊 Database: ${conn.connection.name}`);
+
+    // Connection event listeners
+    mongoose.connection.on("error", (err) => {
+      console.error("❌ MongoDB connection error:", err);
+    });
+
+    mongoose.connection.on("disconnected", () => {
+      console.log("🔌 MongoDB disconnected");
+    });
+  } catch (error) {
+    console.error("❌ MongoDB connection error:", error.message);
+    // Don't exit, continue without database for development
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
+  }
+};
+
+// Connect to database
+connectDB();
+
+// Health check with database status
+app.get("/health", async (req, res) => {
+  const dbStatus =
+    mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+
   res.json({
     status: "OK",
     timestamp: new Date().toISOString(),
@@ -46,214 +76,22 @@ app.get("/health", (req, res) => {
     node: process.version,
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || "development",
+    database: {
+      status: dbStatus,
+      name: mongoose.connection.name || "none",
+    },
   });
 });
 
-// Import TMDB API utility
-const tmdbApi = require("./utils/tmdbApi");
+// Import routes
+const authRoutes = require("./routes/auth");
+const movieRoutes = require("./routes/movies");
+const userRoutes = require("./routes/users");
 
-// Movies API Routes with TMDB Integration
-app.get("/api/movies/popular", async (req, res) => {
-  try {
-    const { page = 1 } = req.query;
-    const results = await tmdbApi.getPopularMovies(page);
-
-    // Add image URLs to each movie
-    results.results = results.results.map((movie) => ({
-      ...movie,
-      poster_url: tmdbApi.getImageURL(movie.poster_path),
-      backdrop_url: tmdbApi.getImageURL(movie.backdrop_path),
-    }));
-
-    res.json({
-      success: true,
-      data: results,
-      pagination: {
-        page: results.page,
-        totalPages: results.total_pages,
-        totalResults: results.total_results,
-      },
-    });
-  } catch (error) {
-    console.error("Popular movies error:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.get("/api/movies/trending", async (req, res) => {
-  try {
-    const { timeWindow = "week" } = req.query;
-    const results = await tmdbApi.getTrendingMovies(timeWindow);
-
-    // Add image URLs
-    results.results = results.results.map((movie) => ({
-      ...movie,
-      poster_url: tmdbApi.getImageURL(movie.poster_path),
-      backdrop_url: tmdbApi.getImageURL(movie.backdrop_path),
-    }));
-
-    res.json({
-      success: true,
-      data: results,
-    });
-  } catch (error) {
-    console.error("Trending movies error:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.get("/api/movies/search", async (req, res) => {
-  try {
-    const { query, page = 1 } = req.query;
-
-    if (!query) {
-      return res.status(400).json({
-        success: false,
-        message: "Query parameter is required",
-      });
-    }
-
-    const results = await tmdbApi.searchMovies(query, page);
-
-    // Add image URLs
-    results.results = results.results.map((movie) => ({
-      ...movie,
-      poster_url: tmdbApi.getImageURL(movie.poster_path),
-      backdrop_url: tmdbApi.getImageURL(movie.backdrop_path),
-    }));
-
-    res.json({
-      success: true,
-      data: results,
-      pagination: {
-        page: results.page,
-        totalPages: results.total_pages,
-        totalResults: results.total_results,
-      },
-    });
-  } catch (error) {
-    console.error("Search movies error:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.get("/api/movies/genres", async (req, res) => {
-  try {
-    const results = await tmdbApi.getGenres();
-
-    res.json({
-      success: true,
-      data: results,
-    });
-  } catch (error) {
-    console.error("Genres error:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.get("/api/movies/top-rated", async (req, res) => {
-  try {
-    const { page = 1 } = req.query;
-    const results = await tmdbApi.getTopRatedMovies(page);
-
-    // Add image URLs
-    results.results = results.results.map((movie) => ({
-      ...movie,
-      poster_url: tmdbApi.getImageURL(movie.poster_path),
-      backdrop_url: tmdbApi.getImageURL(movie.backdrop_path),
-    }));
-
-    res.json({
-      success: true,
-      data: results,
-    });
-  } catch (error) {
-    console.error("Top rated movies error:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.get("/api/movies/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const movie = await tmdbApi.getMovieDetails(id);
-
-    // Add image URLs
-    movie.poster_urls = tmdbApi.getImageURLs(movie.poster_path);
-    movie.backdrop_urls = tmdbApi.getImageURLs(movie.backdrop_path);
-    movie.poster_url = tmdbApi.getImageURL(movie.poster_path);
-    movie.backdrop_url = tmdbApi.getImageURL(movie.backdrop_path);
-
-    res.json({
-      success: true,
-      data: movie,
-    });
-  } catch (error) {
-    console.error("Movie details error:", error.message);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-// Auth placeholder routes
-app.post("/api/auth/register", (req, res) => {
-  res.json({
-    success: true,
-    message: "Register endpoint - coming soon",
-    data: { endpoint: "POST /api/auth/register" },
-  });
-});
-
-app.post("/api/auth/login", (req, res) => {
-  res.json({
-    success: true,
-    message: "Login endpoint - coming soon",
-    data: { endpoint: "POST /api/auth/login" },
-  });
-});
-
-// User placeholder routes
-app.get("/api/users/profile", (req, res) => {
-  res.json({
-    success: true,
-    message: "Profile endpoint - coming soon",
-    data: { endpoint: "GET /api/users/profile" },
-  });
-});
-
-app.get("/api/users/watchlist", (req, res) => {
-  res.json({
-    success: true,
-    message: "Watchlist endpoint - coming soon",
-    data: { endpoint: "GET /api/users/watchlist" },
-  });
-});
-
-// AI placeholder routes
-app.post("/api/ai/recommendations", (req, res) => {
-  res.json({
-    success: true,
-    message: "AI recommendations endpoint - coming soon",
-    data: { endpoint: "POST /api/ai/recommendations" },
-  });
-});
+// API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/movies", movieRoutes);
+app.use("/api/users", userRoutes);
 
 // API documentation
 app.get("/api", (req, res) => {
@@ -261,8 +99,17 @@ app.get("/api", (req, res) => {
     message: "Movie Tracker API",
     version: "1.0.0",
     status: "active",
+    database:
+      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     endpoints: {
       health: "GET /health",
+      auth: {
+        register: "POST /api/auth/register",
+        login: "POST /api/auth/login",
+        logout: "POST /api/auth/logout",
+        me: "GET /api/auth/me",
+        refresh: "POST /api/auth/refresh",
+      },
       movies: {
         popular: "GET /api/movies/popular?page=1",
         trending: "GET /api/movies/trending?timeWindow=week",
@@ -271,22 +118,35 @@ app.get("/api", (req, res) => {
         genres: "GET /api/movies/genres",
         details: "GET /api/movies/:id",
       },
-      auth: {
-        register: "POST /api/auth/register",
-        login: "POST /api/auth/login",
-      },
       users: {
-        profile: "GET /api/users/profile",
-        watchlist: "GET /api/users/watchlist",
-      },
-      ai: {
-        recommendations: "POST /api/ai/recommendations",
+        profile: "GET /api/users/profile [Auth Required]",
+        updateProfile: "PUT /api/users/profile [Auth Required]",
+        bookmarks: "GET /api/users/bookmarks [Auth Required]",
+        addBookmark: "POST /api/users/bookmarks/:movieId [Auth Required]",
+        removeBookmark: "DELETE /api/users/bookmarks/:movieId [Auth Required]",
+        checkBookmark:
+          "GET /api/users/bookmarks/check/:movieId [Auth Required]",
       },
     },
     examples: {
-      popularMovies: "/api/movies/popular",
-      searchMovie: "/api/movies/search?query=avengers",
-      movieDetails: "/api/movies/550",
+      register: {
+        url: "POST /api/auth/register",
+        body: {
+          username: "johndoe",
+          email: "john@example.com",
+          password: "Password123",
+        },
+      },
+      login: {
+        url: "POST /api/auth/login",
+        body: {
+          email: "john@example.com",
+          password: "Password123",
+        },
+      },
+      popularMovies: "GET /api/movies/popular",
+      searchMovie: "GET /api/movies/search?query=avengers",
+      movieDetails: "GET /api/movies/550",
     },
   });
 });
@@ -303,9 +163,49 @@ app.use("*", (req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error("Global Error Handler:", err.stack);
-  res.status(500).json({
+
+  // Mongoose validation error
+  if (err.name === "ValidationError") {
+    const errors = Object.values(err.errors).map((e) => ({
+      field: e.path,
+      message: e.message,
+    }));
+    return res.status(400).json({
+      success: false,
+      message: "Validation Error",
+      errors,
+    });
+  }
+
+  // Mongoose duplicate key error
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
+    return res.status(409).json({
+      success: false,
+      message: `${
+        field.charAt(0).toUpperCase() + field.slice(1)
+      } already exists`,
+    });
+  }
+
+  // JWT errors
+  if (err.name === "JsonWebTokenError") {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid token",
+    });
+  }
+
+  if (err.name === "TokenExpiredError") {
+    return res.status(401).json({
+      success: false,
+      message: "Token expired",
+    });
+  }
+
+  res.status(err.status || 500).json({
     success: false,
-    message: "Something went wrong!",
+    message: err.message || "Something went wrong!",
     error:
       process.env.NODE_ENV === "development"
         ? err.message
@@ -315,20 +215,51 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n🎉 Movie Tracker API Server Started!`);
   console.log(`📍 Port: ${PORT}`);
   console.log(`🌐 Health: http://localhost:${PORT}/health`);
   console.log(`📚 API Docs: http://localhost:${PORT}/api`);
   console.log(`🎬 Movies: http://localhost:${PORT}/api/movies/popular`);
+  console.log(`🔐 Auth: http://localhost:${PORT}/api/auth/register`);
   console.log(
     `🔍 Search: http://localhost:${PORT}/api/movies/search?query=avengers`
   );
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || "development"}\n`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(
+    `📊 Database: ${
+      mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Disconnected"
+    }\n`
+  );
 });
+
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+
+  server.close(() => {
+    console.log("HTTP server closed.");
+
+    mongoose.connection.close(() => {
+      console.log("MongoDB connection closed.");
+      process.exit(0);
+    });
+  });
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err);
-  process.exit(1);
+  gracefulShutdown("Unhandled Promise Rejection");
 });
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  gracefulShutdown("Uncaught Exception");
+});
+
+module.exports = app;

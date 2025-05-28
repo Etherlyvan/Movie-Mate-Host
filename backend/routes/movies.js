@@ -1,51 +1,34 @@
 const express = require("express");
 const router = express.Router();
+const MovieController = require("../controllers/movieController");
+const auth = require("../middleware/auth");
 
-// GET /api/movies/search
-router.get("/search", (req, res) => {
-  res.json({
-    success: true,
-    message: "Search endpoint working",
-    query: req.query,
-    endpoint: "GET /api/movies/search",
-  });
-});
+// Optional auth middleware - authenticates if token present but doesn't require it
+const optionalAuth = (req, res, next) => {
+  const token = req.header("Authorization")?.replace("Bearer ", "");
+  if (token) {
+    try {
+      const jwt = require("jsonwebtoken");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+    } catch (error) {
+      // Continue without auth if token is invalid
+    }
+  }
+  next();
+};
 
-// GET /api/movies/popular
-router.get("/popular", (req, res) => {
-  res.json({
-    success: true,
-    message: "Popular movies endpoint working",
-    endpoint: "GET /api/movies/popular",
-  });
-});
+// Movie routes
+router.get("/search", MovieController.searchMovies);
+router.get("/popular", MovieController.getPopularMovies);
+router.get("/trending", MovieController.getTrendingMovies);
+router.get("/top-rated", MovieController.getTopRatedMovies);
+router.get("/upcoming", MovieController.getUpcomingMovies);
+router.get("/genres", MovieController.getGenres);
+router.get("/genre/:genreId", MovieController.getMoviesByGenre);
+router.get("/:id/recommendations", MovieController.getMovieRecommendations);
 
-// GET /api/movies/trending
-router.get("/trending", (req, res) => {
-  res.json({
-    success: true,
-    message: "Trending movies endpoint working",
-    endpoint: "GET /api/movies/trending",
-  });
-});
-
-// GET /api/movies/genres
-router.get("/genres", (req, res) => {
-  res.json({
-    success: true,
-    message: "Genres endpoint working",
-    endpoint: "GET /api/movies/genres",
-  });
-});
-
-// GET /api/movies/:id (HARUS di paling bawah)
-router.get("/:id", (req, res) => {
-  res.json({
-    success: true,
-    message: "Movie details endpoint working",
-    movieId: req.params.id,
-    endpoint: "GET /api/movies/:id",
-  });
-});
+// Movie details with optional auth to check bookmark status
+router.get("/:id", optionalAuth, MovieController.getMovieDetails);
 
 module.exports = router;
