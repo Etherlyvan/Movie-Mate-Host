@@ -30,6 +30,28 @@ export interface Movie {
   isBookmarked?: boolean;
 }
 
+export interface MovieDetails extends Movie {
+  belongs_to_collection?: any;
+  budget: number;
+  homepage: string;
+  imdb_id: string;
+  original_language: string;
+  original_title: string;
+  production_companies: ProductionCompany[];
+  production_countries: ProductionCountry[];
+  revenue: number;
+  runtime: number;
+  spoken_languages: SpokenLanguage[];
+  status: string;
+  tagline: string;
+  credits?: Credits;
+  videos?: Videos;
+  reviews?: Reviews;
+  similar?: MovieResponse;
+  recommendations?: MovieResponse;
+  isBookmarked?: boolean;
+}
+
 export interface Genre {
   id: number;
   name: string;

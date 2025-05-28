@@ -244,27 +244,177 @@ router.delete("/bookmarks/:movieId", auth, async (req, res) => {
 });
 
 // Legacy watchlist endpoint for backward compatibility
-router.get("/watchlist", auth, async (req, res) => {
+router.get("/watched", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("watchlist");
+    const user = await User.findById(req.user.id).select("movieLogs");
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
+
+    // Filter only watched movies
+    const watchedMovies = user.movieLogs.filter(
+      (log) => log.status === "watched"
+    );
+
     res.json({
       success: true,
       data: {
-        watchlist: user.watchlist || [],
-        total: user.watchlist?.length || 0,
+        watched: watchedMovies || [],
+        total: watchedMovies?.length || 0,
       },
     });
   } catch (error) {
-    console.error("Get watchlist error:", error);
+    console.error("Get watched movies error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to get watchlist",
+      message: "Failed to get watched movies",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Check if movie is watched
+router.get("/watched/check/:movieId", auth, async (req, res) => {
+  try {
+    const { movieId } = req.params;
+    const user = await User.findById(req.user.id).select("movieLogs");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const isWatched = user.movieLogs.some(
+      (log) => log.movieId.toString() === movieId && log.status === "watched"
+    );
+
+    res.json({
+      success: true,
+      data: {
+        isWatched,
+        movieId: parseInt(movieId),
+      },
+    });
+  } catch (error) {
+    console.error("Check watched status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check watched status",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// POST /api/users/watched/:movieId
+router.post("/watched/:movieId", auth, async (req, res) => {
+  try {
+    const { movieId } = req.params;
+    const { movieTitle, moviePoster, rating, review } = req.body;
+
+    if (!movieTitle) {
+      return res.status(400).json({
+        success: false,
+        message: "Movie title is required",
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if movie is already in logs
+    const existingLogIndex = user.movieLogs.findIndex(
+      (log) => log.movieId.toString() === movieId
+    );
+
+    const watchedMovie = {
+      movieId: parseInt(movieId),
+      movieTitle,
+      moviePoster: moviePoster || "",
+      status: "watched",
+      rating: rating || null,
+      review: review || "",
+      dateAdded: new Date(),
+      dateWatched: new Date(),
+      progress: 100,
+    };
+
+    if (existingLogIndex !== -1) {
+      // Update existing log
+      user.movieLogs[existingLogIndex] = {
+        ...user.movieLogs[existingLogIndex],
+        ...watchedMovie,
+      };
+    } else {
+      // Add new log
+      user.movieLogs.push(watchedMovie);
+    }
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Movie marked as watched successfully",
+      data: {
+        watched: watchedMovie,
+      },
+    });
+  } catch (error) {
+    console.error("Add watched movie error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to mark movie as watched",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// DELETE /api/users/watched/:movieId
+router.delete("/watched/:movieId", auth, async (req, res) => {
+  try {
+    const { movieId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Find and remove or update watched status
+    const logIndex = user.movieLogs.findIndex(
+      (log) => log.movieId.toString() === movieId && log.status === "watched"
+    );
+
+    if (logIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Watched movie not found",
+      });
+    }
+
+    user.movieLogs.splice(logIndex, 1);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Movie removed from watched list successfully",
+    });
+  } catch (error) {
+    console.error("Remove watched movie error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to remove watched movie",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }

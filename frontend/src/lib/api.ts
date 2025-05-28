@@ -83,6 +83,13 @@ interface BookmarkData {
   moviePoster: string;
 }
 
+interface WatchedMovieData {
+  movieTitle: string;
+  moviePoster: string;
+  rating?: number;
+  review?: string;
+}
+
 // API functions
 export const movieApi = {
   // Get popular movies
@@ -149,7 +156,25 @@ export const userApi = {
 
   checkBookmark: (movieId: string | number) =>
     api.get(`/users/bookmarks/check/${movieId}`),
+
+  // Watched movie functions
+  getWatchedMovies: () => api.get("/users/watched"),
+
+  addWatchedMovie: (movieId: string | number, watchedData: WatchedMovieData) =>
+    api.post(`/users/watched/${movieId}`, watchedData),
+
+  removeWatchedMovie: (movieId: string | number) =>
+    api.delete(`/users/watched/${movieId}`),
+
+  checkWatchedMovie: (movieId: string | number) =>
+    api.get(`/users/watched/check/${movieId}`),
 };
 
 // Export types for use in components
-export type { RegisterData, LoginCredentials, ProfileData, BookmarkData };
+export type {
+  RegisterData,
+  LoginCredentials,
+  ProfileData,
+  BookmarkData,
+  WatchedMovieData,
+};

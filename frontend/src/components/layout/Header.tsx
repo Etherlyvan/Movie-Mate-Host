@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Film, Bell, User, Bookmark } from "lucide-react";
+import { Search, Film, Bell, User, Bookmark, Eye } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 
 export const Header: React.FC = () => {
@@ -70,7 +70,7 @@ export const Header: React.FC = () => {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
             ? "bg-gray-900/95 backdrop-blur-md shadow-lg border-b border-gray-800"
-            : "bg-transparent"
+            : "bg-gray-900/80 backdrop-blur-sm"
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -101,7 +101,7 @@ export const Header: React.FC = () => {
                   >
                     {item.label}
                     {isActivePath(item.href) && (
-                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-red-600 rounded-full" />
+                      <div className="absolute bottom-0.75 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-red-600 rounded-full" />
                     )}
                   </Link>
                 ))}
@@ -180,6 +180,18 @@ export const Header: React.FC = () => {
                       >
                         <Bookmark className="h-4 w-4" />
                         Bookmarks
+                      </Link>
+                      <Link
+                        href="/watched"
+                        onClick={handleUserMenuItemClick}
+                        className={`flex items-center gap-3 px-4 py-2 transition-colors ${
+                          isActivePath("/watched")
+                            ? "text-green-400 bg-green-400/10"
+                            : "text-gray-300 hover:text-green-400 hover:bg-white/5"
+                        }`}
+                      >
+                        <Eye className="h-4 w-4" />
+                        Watched Movies
                       </Link>
                       <Link
                         href="/settings"

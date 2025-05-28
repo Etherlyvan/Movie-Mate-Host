@@ -223,13 +223,11 @@ const HeroSection: React.FC<{ movie: Movie }> = ({ movie }) => {
                 href={`/movies/${movie.id}`}
                 className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-100 transition-all duration-200 transform hover:scale-105"
               >
-                <Play className="h-5 w-5 mr-3" />
-                Watch Now
+                <button className="inline-flex items-center justify-center px-2 py-2 bg-white/20 backdrop-blur-sm text-gray font-semibold rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30">
+                  <Info className="h-5 w-5 mr-3" />
+                  More Info
+                </button>
               </Link>
-              <button className="inline-flex items-center justify-center px-8 py-4 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30">
-                <Info className="h-5 w-5 mr-3" />
-                More Info
-              </button>
             </div>
           </div>
         </div>
@@ -303,14 +301,9 @@ const CTASection: React.FC = () => {
 const LoadingScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-      <div className="text-center">
-        <div className="relative">
-          <div className="w-20 h-20 border-4 border-blue-600/30 rounded-full animate-spin"></div>
-          <div className="absolute top-0 left-0 w-20 h-20 border-4 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
-        </div>
-        <p className="mt-6 text-white text-lg font-medium">
-          Loading amazing movies...
-        </p>
+      <div className="flex flex-col justify-center items-center py-24">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mb-6"></div>
+        <p className="text-gray-400 text-lg">Loading amazing movies...</p>
       </div>
     </div>
   );

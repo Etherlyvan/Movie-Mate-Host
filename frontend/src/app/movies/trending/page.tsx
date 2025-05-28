@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react";
 import { movieApi } from "@/lib/api";
 import { Movie } from "@/types";
-import { getImageUrl, formatRating, getYearFromDate } from "@/lib/utils";
-import { TrendingUp } from "lucide-react";
-import Link from "next/link";
+import { MovieGrid } from "@/components/movie/MovieCard";
+import { TrendingUp, Flame, Clock, Calendar } from "lucide-react";
 
 export default function TrendingPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -29,80 +28,136 @@ export default function TrendingPage() {
   }, [timeWindow]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center mb-4">
-          <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-            Trending Movies
-          </h1>
+    <div className="min-h-screen bg-gray-900 pt-20">
+      <div className="max-w-8xl mx-auto px-6 sm:px-8 lg:px-12 py-12">
+        {/* Hero Header - Much more spacious */}
+        <div className="mb-20">
+          <div className="text-center max-w-5xl mx-auto">
+            <div className="flex items-center justify-center mb-8">
+              <div className="relative">
+                <TrendingUp className="h-16 w-16 text-red-500 mr-4" />
+                <Flame className="absolute -top-2 -right-2 h-8 w-8 text-orange-500 animate-pulse" />
+              </div>
+              <h1 className="text-5xl md:text-7xl font-bold text-white">
+                Trending Movies
+              </h1>
+            </div>
+            <p className="text-gray-400 text-xl md:text-2xl leading-relaxed mb-12">
+              Discover what&apos;s hot and trending right now across the globe
+            </p>
+
+            {/* Time Window Toggle - Larger and more spaced */}
+            <div className="flex justify-center space-x-6">
+              <button
+                onClick={() => setTimeWindow("day")}
+                className={`px-10 py-5 rounded-2xl font-semibold transition-all duration-300 text-lg ${
+                  timeWindow === "day"
+                    ? "bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-2xl transform scale-105"
+                    : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70 backdrop-blur-sm"
+                }`}
+              >
+                <Clock className="h-5 w-5 inline mr-3" />
+                Today&apos;s Hottest
+              </button>
+              <button
+                onClick={() => setTimeWindow("week")}
+                className={`px-10 py-5 rounded-2xl font-semibold transition-all duration-300 text-lg ${
+                  timeWindow === "week"
+                    ? "bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-2xl transform scale-105"
+                    : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/70 backdrop-blur-sm"
+                }`}
+              >
+                <Calendar className="h-5 w-5 inline mr-3" />
+                This Week&apos;s Best
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Time Window Toggle */}
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setTimeWindow("day")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              timeWindow === "day"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => setTimeWindow("week")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              timeWindow === "week"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            This Week
-          </button>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-          {movies.map((movie, index) => (
-            <Link key={movie.id} href={`/movies/${movie.id}`} className="group">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group-hover:scale-105 relative">
-                {/* Trending Rank */}
-                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
-                  #{index + 1}
-                </div>
-
-                <div className="aspect-[2/3] bg-gray-200 dark:bg-gray-700 relative">
-                  <img
-                    src={getImageUrl(movie.poster_path)}
-                    alt={movie.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div className="absolute top-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded-full">
-                    ⭐ {formatRating(movie.vote_average)}
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {movie.title}
+        {/* Loading State - More spacious */}
+        {loading ? (
+          <div className="flex flex-col justify-center items-center py-24">
+            <div className="relative mb-8">
+              <div className="animate-spin rounded-full h-20 w-20 border-b-2 border-red-600"></div>
+              <Flame className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 h-8 w-8 text-orange-500" />
+            </div>
+            <p className="text-gray-400 text-xl">Loading trending movies...</p>
+            <p className="text-gray-500 text-sm mt-2">
+              This might take a moment
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Stats Section - More prominent */}
+            <div className="mb-16 p-8 bg-gradient-to-r from-red-900/20 to-pink-900/20 rounded-3xl backdrop-blur-sm border border-red-500/20">
+              <div className="flex flex-col md:flex-row items-center justify-between text-center md:text-left space-y-4 md:space-y-0">
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">
+                    {movies.length} Trending Movies
                   </h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs">
-                    {getYearFromDate(movie.release_date)}
+                  <p className="text-red-400 text-lg">
+                    {timeWindow === "day"
+                      ? "Updated every hour"
+                      : "Updated daily"}
                   </p>
                 </div>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2 text-red-400">
+                    <TrendingUp className="h-6 w-6" />
+                    <span className="font-semibold text-lg">
+                      {timeWindow === "day" ? "Today" : "This Week"}
+                    </span>
+                  </div>
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                </div>
               </div>
-            </Link>
-          ))}
-        </div>
-      )}
+            </div>
+
+            {/* Movies Grid - More spacing and larger cards */}
+            <div className="mb-20">
+              <MovieGrid
+                movies={movies}
+                variant="featured"
+                showRanks={true}
+                className="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 md:gap-12"
+              />
+            </div>
+
+            {/* Call to Action Section - Much more spacious */}
+            <div className="text-center py-20 border-t border-gray-800/50">
+              <div className="max-w-4xl mx-auto">
+                <h3 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                  Want to explore more?
+                </h3>
+                <p className="text-gray-400 mb-12 text-xl leading-relaxed">
+                  Dive deeper into our vast collection of movies and discover
+                  your next favorite film
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center gap-6">
+                  <a
+                    href="/movies"
+                    className="px-10 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 text-lg font-semibold shadow-2xl"
+                  >
+                    🎬 Browse All Movies
+                  </a>
+                  <a
+                    href="/movies?tab=top-rated"
+                    className="px-10 py-4 bg-gray-800/50 text-gray-300 rounded-2xl hover:bg-gray-700/70 transition-all duration-300 backdrop-blur-sm text-lg font-semibold"
+                  >
+                    🏆 Top Rated Movies
+                  </a>
+                  <a
+                    href="/movies?tab=popular"
+                    className="px-10 py-4 bg-gray-800/50 text-gray-300 rounded-2xl hover:bg-gray-700/70 transition-all duration-300 backdrop-blur-sm text-lg font-semibold"
+                  >
+                    ⭐ Popular Movies
+                  </a>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

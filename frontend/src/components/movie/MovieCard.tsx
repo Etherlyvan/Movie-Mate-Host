@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Movie } from "@/types";
 import { getImageUrl, formatRating, getYearFromDate } from "@/lib/utils";
+import { useBookmarkStore } from "@/stores/bookmarkStore";
+import { useWatchedStore } from "@/stores/watchedStore";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "react-hot-toast";
 import {
   Star,
-  Play,
-  Bookmark,
   Info,
   Calendar,
-  Heart,
-  Check,
-  Plus,
+  Eye,
+  EyeOff,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 
 interface MovieCardProps {
@@ -32,9 +35,18 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   className = "",
   showHoverActions = true,
 }) => {
-  const [isInWatchlist, setIsInWatchlist] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [watched, setWatched] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [watchedLoading, setWatchedLoading] = useState(false);
+
+  const { isAuthenticated } = useAuthStore();
+  const { addBookmark, removeBookmark, isBookmarked, checkBookmarkStatus } =
+    useBookmarkStore();
+
+  const { addWatchedMovie, removeWatchedMovie, isWatched, checkWatchedStatus } =
+    useWatchedStore();
 
   const cardVariants = {
     default: {
@@ -71,22 +83,100 @@ export const MovieCard: React.FC<MovieCardProps> = ({
 
   const currentVariant = cardVariants[variant];
 
-  const handleWatchlistToggle = (e: React.MouseEvent) => {
+  // Check bookmark and watched status on mount
+  useEffect(() => {
+    if (isAuthenticated && movie.id) {
+      const checkStatuses = async () => {
+        try {
+          const [bookmarkStatus, watchedStatus] = await Promise.all([
+            checkBookmarkStatus(movie.id),
+            checkWatchedStatus(movie.id),
+          ]);
+          setBookmarked(bookmarkStatus);
+          setWatched(watchedStatus);
+        } catch (error) {
+          setBookmarked(isBookmarked(movie.id));
+          setWatched(isWatched(movie.id));
+        }
+      };
+      checkStatuses();
+    } else {
+      setBookmarked(false);
+      setWatched(false);
+    }
+  }, [
+    movie.id,
+    isAuthenticated,
+    checkBookmarkStatus,
+    checkWatchedStatus,
+    isBookmarked,
+    isWatched,
+  ]);
+
+  // Update local state when stores change
+  useEffect(() => {
+    setBookmarked(isBookmarked(movie.id));
+    setWatched(isWatched(movie.id));
+  }, [movie.id, isBookmarked, isWatched]);
+
+  const handleBookmarkToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsInWatchlist(!isInWatchlist);
+
+    if (!isAuthenticated) {
+      toast.error("Please login to bookmark movies");
+      return;
+    }
+
+    setBookmarkLoading(true);
+    try {
+      if (bookmarked) {
+        await removeBookmark(movie.id);
+        setBookmarked(false);
+        toast.success("Removed from bookmarks");
+      } else {
+        await addBookmark(movie.id, movie.title, movie.poster_path || "");
+        setBookmarked(true);
+        toast.success("Added to bookmarks");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Something went wrong");
+    } finally {
+      setBookmarkLoading(false);
+    }
   };
 
-  const handleLikeToggle = (e: React.MouseEvent) => {
+  const handleWatchedToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsLiked(!isLiked);
+
+    if (!isAuthenticated) {
+      toast.error("Please login to mark movies as watched");
+      return;
+    }
+
+    setWatchedLoading(true);
+    try {
+      if (watched) {
+        await removeWatchedMovie(movie.id);
+        setWatched(false);
+        toast.success("Removed from watched list");
+      } else {
+        await addWatchedMovie(movie.id, movie.title, movie.poster_path || "");
+        setWatched(true);
+        toast.success("Marked as watched");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Something went wrong");
+    } finally {
+      setWatchedLoading(false);
+    }
   };
 
-  const handlePlayClick = (e: React.MouseEvent) => {
+  const handleInfoClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log("Play movie:", movie.title);
+    window.location.href = `/movies/${movie.id}`;
   };
 
   return (
@@ -94,9 +184,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
       className={`group flex-shrink-0 ${currentVariant.container} ${className}`}
     >
       <div className="relative">
-        {/* Main Card Link */}
         <Link href={`/movies/${movie.id}`} className="block">
-          {/* Poster Container */}
           <div
             className={`relative ${currentVariant.poster} bg-gray-800 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2`}
           >
@@ -116,14 +204,22 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               onLoad={() => setImageLoaded(true)}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = "/images/placeholder-movie.jpg";
+                target.src = getImageUrl(null);
                 setImageLoaded(true);
               }}
             />
 
+            {/* Watched Overlay */}
+            {watched && (
+              <div className="absolute inset-0 bg-green-600/20 flex items-center justify-center">
+                <div className="bg-green-600/90 backdrop-blur-sm text-white p-2 rounded-full">
+                  <Eye className="h-6 w-6" />
+                </div>
+              </div>
+            )}
+
             {/* Gradient Overlays */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
             {/* Rank Badge */}
             {showRank && rank && (
@@ -132,7 +228,6 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                   <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 text-white text-sm font-black rounded-full flex items-center justify-center shadow-2xl border-2 border-white/20">
                     {rank}
                   </div>
-                  <div className="absolute -inset-1 bg-red-600/50 rounded-full blur opacity-75" />
                 </div>
               </div>
             )}
@@ -145,64 +240,98 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               </div>
             </div>
 
-            {/* Quality Badge */}
-            <div className="absolute bottom-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <div className="bg-green-600/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded">
-                HD
+            {/* Status Badges */}
+            {isAuthenticated && (
+              <div className="absolute top-4 left-4 flex flex-col gap-2">
+                {bookmarked && (
+                  <div className="bg-yellow-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
+                    <Bookmark className="h-3 w-3 mr-1" />
+                    Saved
+                  </div>
+                )}
+                {watched && (
+                  <div className="bg-green-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
+                    <Eye className="h-3 w-3 mr-1" />
+                    Watched
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            {/* Hover Actions */}
+            {/* Hover Actions - Simplified */}
             {showHoverActions && (
               <div className="absolute inset-0 flex flex-col justify-end p-6 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
-                {/* Main Action Button */}
+                {/* Main Action Button - View Details */}
                 <button
-                  onClick={handlePlayClick}
+                  onClick={handleInfoClick}
                   className="w-full bg-white/95 hover:bg-white text-gray-900 font-bold py-3 rounded-xl transition-all duration-200 flex items-center justify-center mb-3 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  <Play className="h-4 w-4 mr-2 fill-current" />
-                  Play Now
+                  <Info className="h-4 w-4 mr-2" />
+                  View Details
                 </button>
 
-                {/* Secondary Actions */}
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleWatchlistToggle}
-                    className={`flex-1 backdrop-blur-md font-semibold py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center border ${
-                      isInWatchlist
-                        ? "bg-green-600/90 text-white border-green-500/50"
-                        : "bg-white/20 hover:bg-white/30 text-white border-white/30"
-                    }`}
-                  >
-                    {isInWatchlist ? (
-                      <Check className="h-4 w-4 mr-1" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-1" />
-                    )}
-                    <span className="text-xs">List</span>
-                  </button>
-
-                  <button
-                    onClick={handleLikeToggle}
-                    className={`flex-1 backdrop-blur-md font-semibold py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center border ${
-                      isLiked
-                        ? "bg-red-600/90 text-white border-red-500/50"
-                        : "bg-white/20 hover:bg-white/30 text-white border-white/30"
-                    }`}
-                  >
-                    <Heart
-                      className={`h-4 w-4 mr-1 ${
-                        isLiked ? "fill-current" : ""
+                {/* Secondary Actions - Only if authenticated */}
+                {isAuthenticated && (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleBookmarkToggle}
+                      disabled={bookmarkLoading}
+                      className={`flex-1 backdrop-blur-md font-semibold py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center border ${
+                        bookmarked
+                          ? "bg-yellow-600/90 text-white border-yellow-500/50"
+                          : "bg-white/20 hover:bg-white/30 text-white border-white/30"
+                      } ${
+                        bookmarkLoading ? "opacity-50 cursor-not-allowed" : ""
                       }`}
-                    />
-                    <span className="text-xs">Like</span>
-                  </button>
+                    >
+                      {bookmarkLoading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-1"></div>
+                      ) : bookmarked ? (
+                        <BookmarkCheck className="h-4 w-4 mr-1 fill-current" />
+                      ) : (
+                        <Bookmark className="h-4 w-4 mr-1" />
+                      )}
+                      <span className="text-xs">
+                        {bookmarked ? "Saved" : "Save"}
+                      </span>
+                    </button>
 
-                  <button className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-semibold py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center border border-white/30">
-                    <Info className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Info</span>
-                  </button>
-                </div>
+                    <button
+                      onClick={handleWatchedToggle}
+                      disabled={watchedLoading}
+                      className={`flex-1 backdrop-blur-md font-semibold py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center border ${
+                        watched
+                          ? "bg-green-600/90 text-white border-green-500/50"
+                          : "bg-white/20 hover:bg-white/30 text-white border-white/30"
+                      } ${
+                        watchedLoading ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {watchedLoading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-1"></div>
+                      ) : watched ? (
+                        <Eye className="h-4 w-4 mr-1" />
+                      ) : (
+                        <EyeOff className="h-4 w-4 mr-1" />
+                      )}
+                      <span className="text-xs">
+                        {watched ? "Watched" : "Watch"}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Login prompt for non-authenticated users */}
+                {!isAuthenticated && (
+                  <div className="text-center mt-2">
+                    <Link
+                      href="/login"
+                      className="text-xs text-blue-300 hover:text-blue-100 underline"
+                    >
+                      Login to bookmark & track
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -232,34 +361,58 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <button
-                onClick={handleWatchlistToggle}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
-                title="Add to Watchlist"
-              >
-                <Bookmark
-                  className={`h-3 w-3 ${
-                    isInWatchlist
-                      ? "fill-current text-green-400"
-                      : "text-gray-400"
-                  }`}
-                />
-              </button>
-              <button
-                onClick={handleLikeToggle}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
-                title="Like"
-              >
-                <Heart
-                  className={`h-3 w-3 ${
-                    isLiked ? "fill-current text-red-400" : "text-gray-400"
-                  }`}
-                />
-              </button>
-            </div>
+            {/* Quick Actions - Simplified */}
+            {isAuthenticated && (
+              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  onClick={handleBookmarkToggle}
+                  disabled={bookmarkLoading}
+                  className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+                  title={
+                    bookmarked ? "Remove from bookmarks" : "Add to bookmarks"
+                  }
+                >
+                  <Bookmark
+                    className={`h-3 w-3 ${
+                      bookmarked
+                        ? "fill-current text-yellow-400"
+                        : "text-gray-400"
+                    }`}
+                  />
+                </button>
+                <button
+                  onClick={handleWatchedToggle}
+                  disabled={watchedLoading}
+                  className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+                  title={watched ? "Mark as unwatched" : "Mark as watched"}
+                >
+                  <Eye
+                    className={`h-3 w-3 ${
+                      watched ? "text-green-400" : "text-gray-400"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Status Indicators */}
+          {(bookmarked || watched) && (
+            <div className="flex gap-2 text-xs">
+              {bookmarked && (
+                <div className="flex items-center text-yellow-400">
+                  <BookmarkCheck className="h-3 w-3 mr-1" />
+                  <span>Bookmarked</span>
+                </div>
+              )}
+              {watched && (
+                <div className="flex items-center text-green-400">
+                  <Eye className="h-3 w-3 mr-1" />
+                  <span>Watched</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Genres (for larger variants) */}
           {(variant === "large" || variant === "hero") && movie.genre_ids && (
@@ -280,7 +433,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   );
 };
 
-// Movie Grid Component (Enhanced)
+// Movie Grid Component (Unchanged)
 interface MovieGridProps {
   movies: Movie[];
   variant?: "default" | "featured" | "compact" | "large" | "hero";
@@ -294,18 +447,23 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   showRanks = false,
   className = "",
 }) => {
+  // Default grid dengan spacing yang lebih besar
+  const defaultGridCols =
+    "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-8 md:gap-10";
+
   const gridCols = {
-    default:
-      "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
-    featured: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
+    default: defaultGridCols,
+    featured:
+      "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-10 md:gap-12",
     compact:
-      "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8",
-    large: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
-    hero: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3",
+      "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6 md:gap-8",
+    large:
+      "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-12 md:gap-16",
+    hero: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-16 md:gap-20",
   };
 
   return (
-    <div className={`grid ${gridCols[variant]} gap-6 md:gap-8 ${className}`}>
+    <div className={`grid ${className || gridCols[variant]}`}>
       {movies.map((movie, index) => (
         <MovieCard
           key={movie.id}
@@ -319,7 +477,7 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   );
 };
 
-// Movie Row Component (Enhanced)
+// Movie Row Component (Unchanged)
 interface MovieRowProps {
   movies: Movie[];
   variant?: "default" | "featured" | "compact" | "large" | "hero";
