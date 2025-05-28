@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Search, Film, Bell, User, Bookmark, Eye } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import styles from "./Header.module.css";
 
 export const Header: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,7 +83,7 @@ export const Header: React.FC = () => {
                   <Film className="h-8 w-8 lg:h-10 lg:w-10 text-red-600 group-hover:text-red-500 transition-colors" />
                   <div className="absolute -inset-1 bg-red-600/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-sm" />
                 </div>
-                <span className="text-xl lg:text-2xl font-black text-white group-hover:text-red-400 transition-colors">
+                <span className="text-xl lg:text-2xl font-black text-white group-hover:text-red-600 transition-colors">
                   Movie<span className="text-red-600">Mate</span>
                 </span>
               </Link>
@@ -254,30 +255,25 @@ export const Header: React.FC = () => {
                 </Link>
               )}
 
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5 header-menu-btn"
                 aria-label="Toggle mobile menu"
               >
-                <div className="w-6 h-6 relative">
+                <div className="w-6 h-6 relative flex flex-col justify-center items-center">
                   <span
-                    className={`absolute block h-0.5 w-6 bg-current transform transition duration-300 ease-in-out ${
-                      isMenuOpen
-                        ? "rotate-45 translate-y-1.5"
-                        : "-translate-y-1"
+                    className={`block absolute h-0.5 w-6 bg-current transition-all duration-300 ease-in-out ${
+                      isMenuOpen ? "rotate-45 top-3" : "top-1"
                     }`}
                   />
                   <span
-                    className={`absolute block h-0.5 w-6 bg-current transform transition duration-300 ease-in-out ${
-                      isMenuOpen ? "opacity-0" : "translate-y-0.5"
+                    className={`block absolute h-0.5 w-6 bg-current transition-all duration-300 ease-in-out ${
+                      isMenuOpen ? "opacity-0" : "top-3"
                     }`}
                   />
                   <span
-                    className={`absolute block h-0.5 w-6 bg-current transform transition duration-300 ease-in-out ${
-                      isMenuOpen
-                        ? "-rotate-45 -translate-y-1.5"
-                        : "translate-y-2"
+                    className={`block absolute h-0.5 w-6 bg-current transition-all duration-300 ease-in-out ${
+                      isMenuOpen ? "-rotate-45 top-3" : "top-5"
                     }`}
                   />
                 </div>
@@ -331,6 +327,18 @@ export const Header: React.FC = () => {
                   >
                     <Bookmark className="h-4 w-4" />
                     Bookmarks
+                  </Link>
+                  <Link
+                    href="/watched"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-2 transition-colors ${
+                      isActivePath("/watched")
+                        ? "text-green-400 bg-green-400/10"
+                        : "text-gray-300 hover:text-green-400 hover:bg-white/5"
+                    }`}
+                  >
+                    <Eye className="h-4 w-4" />
+                    Watched Movies
                   </Link>
                   <Link
                     href="/profile"
