@@ -144,3 +144,97 @@ export interface Bookmark {
   moviePoster: string;
   dateAdded: string;
 }
+
+// frontend/src/types/user.ts
+export interface User {
+  _id: string;
+  username: string;
+  email: string;
+  profile: UserProfile;
+  preferences: UserPreferences;
+  statistics: UserStatistics;
+  movieLogs: MovieLog[];
+  watchlist: WatchlistItem[];
+  isEmailVerified: boolean;
+  lastLogin?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserProfile {
+  avatar: string | null;
+  displayName?: string;
+  bio: string;
+  favoriteGenres: string[];
+  dateOfBirth?: Date;
+  country?: string;
+  location?: string;
+  website?: string;
+  socialLinks: {
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
+  };
+  isPublic: boolean;
+  joinedDate: Date;
+}
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notifications: {
+    email: boolean;
+    push: boolean;
+    newReleases: boolean;
+    recommendations: boolean;
+  };
+  privacy: {
+    showProfile: boolean;
+    showWatchlist: boolean;
+    showActivity: boolean;
+  };
+  display: {
+    moviesPerPage: number;
+    defaultView: 'grid' | 'list';
+  };
+}
+
+export interface UserStatistics {
+  totalMoviesWatched: number;
+  totalWatchTime: number;
+  averageRating: number;
+  favoriteGenre?: string;
+  watchingStreak: number;
+  lastActivityDate?: Date;
+}
+
+export interface MovieLog {
+  _id?: string;
+  movieId: number;
+  movieTitle: string;
+  moviePoster: string;
+  status: 'watched' | 'watching' | 'want_to_watch' | 'dropped';
+  rating?: number;
+  review?: string;
+  dateAdded: Date;
+  dateWatched?: Date;
+  progress: number;
+}
+
+export interface WatchlistItem {
+  _id?: string;
+  movieId: number;
+  movieTitle: string;
+  moviePoster: string;
+  dateAdded: Date;
+}
+
+export interface Activity {
+  type: 'watched' | 'bookmarked' | 'rated' | 'reviewed';
+  movieId: number;
+  movieTitle: string;
+  moviePoster: string;
+  rating?: number;
+  date: string;
+  review?: string;
+}
