@@ -115,9 +115,9 @@ export const movieApi = {
   // Get genres
   getGenres: () => api.get("/movies/genres"),
 
-  // Get movies by genre
-  getByGenre: (genreId: string | number, page = 1) =>
-    api.get(`/movies/genre/${genreId}?page=${page}`),
+// Get movies by genre
+getByGenre: (genreId: string | number, page = 1, sortBy = "popularity.desc") =>
+  api.get(`/movies/genre/${genreId}?page=${page}&sort_by=${sortBy}`), // Gunakan sort_by
 
   // Get movie recommendations
   getRecommendations: (id: string | number, page = 1) =>

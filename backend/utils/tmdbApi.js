@@ -18,7 +18,7 @@ class TMDBApi {
           api_key: this.apiKey,
           ...params,
         },
-        timeout: 10000, // 10 second timeout
+        timeout: 10000,
       });
       return response.data;
     } catch (error) {
@@ -67,12 +67,12 @@ class TMDBApi {
     return await this.makeRequest("/movie/upcoming", { page });
   }
 
-  // Get movies by genre
-  async getMoviesByGenre(genreId, page = 1) {
+  // Get movies by genre - DIPERBAIKI
+  async getMoviesByGenre(genreId, page = 1, sortBy = "popularity.desc") {
     return await this.makeRequest("/discover/movie", {
       with_genres: genreId,
       page,
-      sort_by: "popularity.desc",
+      sort_by: sortBy, // Parameter ini yang penting!
     });
   }
 

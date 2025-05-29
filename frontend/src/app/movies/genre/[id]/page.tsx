@@ -29,28 +29,29 @@ function GenreContent() {
     { value: "title.asc", label: "A-Z" },
   ];
 
-  useEffect(() => {
-    const fetchGenreMovies = async () => {
-      setLoading(true);
-      try {
-        const response = await movieApi.getByGenre(genreId, page);
-        const data = response.data.data;
+useEffect(() => {
+  const fetchGenreMovies = async () => {
+    setLoading(true);
+    try {
+      // Pastikan parameter diteruskan dengan benar
+      const response = await movieApi.getByGenre(genreId, page, sortBy);
+      const data = response.data.data;
 
-        if (page === 1) {
-          setMovies(data.results);
-        } else {
-          setMovies((prev) => [...prev, ...data.results]);
-        }
-        setTotalPages(data.total_pages);
-      } catch (error) {
-        console.error("Error fetching genre movies:", error);
-      } finally {
-        setLoading(false);
+      if (page === 1) {
+        setMovies(data.results);
+      } else {
+        setMovies((prev) => [...prev, ...data.results]);
       }
-    };
+      setTotalPages(data.total_pages);
+    } catch (error) {
+      console.error("Error fetching genre movies:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchGenreMovies();
-  }, [genreId, page, sortBy]);
+  fetchGenreMovies();
+}, [genreId, page, sortBy]); // Pastikan sortBy ada di dependency array
 
   const handleLoadMore = () => {
     if (page < totalPages) {

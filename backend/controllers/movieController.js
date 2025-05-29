@@ -227,39 +227,40 @@ class MovieController {
     }
   }
 
-  // Get movies by genre
-  static async getMoviesByGenre(req, res) {
-    try {
-      const { genreId } = req.params;
-      const { page = 1 } = req.query;
-      const results = await tmdbApi.getMoviesByGenre(genreId, page);
+// Get movies by genre
+static async getMoviesByGenre(req, res) {
+  try {
+    const { genreId } = req.params;
+    const { page = 1, sort_by = "popularity.desc" } = req.query; // Gunakan sort_by bukan sortBy
+    
+    const results = await tmdbApi.getMoviesByGenre(genreId, page, sort_by);
 
-      // Add image URLs to each movie
-      results.results = results.results.map((movie) => ({
-        ...movie,
-        poster_url: tmdbApi.getImageURL(movie.poster_path),
-        backdrop_url: tmdbApi.getImageURL(movie.backdrop_path),
-        poster_urls: tmdbApi.getImageURLs(movie.poster_path),
-        backdrop_urls: tmdbApi.getImageURLs(movie.backdrop_path),
-      }));
+    // Add image URLs to each movie
+    results.results = results.results.map((movie) => ({
+      ...movie,
+      poster_url: tmdbApi.getImageURL(movie.poster_path),
+      backdrop_url: tmdbApi.getImageURL(movie.backdrop_path),
+      poster_urls: tmdbApi.getImageURLs(movie.poster_path),
+      backdrop_urls: tmdbApi.getImageURLs(movie.backdrop_path),
+    }));
 
-      res.json({
-        success: true,
-        data: results,
-        pagination: {
-          page: results.page,
-          totalPages: results.total_pages,
-          totalResults: results.total_results,
-        },
-      });
-    } catch (error) {
-      console.error("Movies by genre error:", error.message);
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      });
-    }
+    res.json({
+      success: true,
+      data: results,
+      pagination: {
+        page: results.page,
+        totalPages: results.total_pages,
+        totalResults: results.total_results,
+      },
+    });
+  } catch (error) {
+    console.error("Movies by genre error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
+}
 
   // Get movie recommendations
   static async getMovieRecommendations(req, res) {
