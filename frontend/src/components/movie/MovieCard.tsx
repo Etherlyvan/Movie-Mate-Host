@@ -16,8 +16,10 @@ import {
   EyeOff,
   Bookmark,
   BookmarkCheck,
+  Play,
 } from "lucide-react";
 
+// [MovieCardProps dan MovieCard component tetap sama seperti sebelumnya]
 interface MovieCardProps {
   movie: Movie;
   variant?: "default" | "featured" | "compact" | "large" | "hero";
@@ -35,6 +37,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   className = "",
   showHoverActions = true,
 }) => {
+  // [Semua kode MovieCard tetap sama]
   const [imageLoaded, setImageLoaded] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [watched, setWatched] = useState(false);
@@ -433,7 +436,219 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   );
 };
 
-// Movie Grid Component (Unchanged)
+// Movie List Item Component - NEW ADDITION
+interface MovieListItemProps {
+  movie: Movie;
+  showActions?: boolean;
+}
+
+export const MovieListItem: React.FC<MovieListItemProps> = ({ 
+  movie, 
+  showActions = true 
+}) => {
+  const [bookmarked, setBookmarked] = useState(false);
+  const [watched, setWatched] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [watchedLoading, setWatchedLoading] = useState(false);
+
+  const { isAuthenticated } = useAuthStore();
+  const { addBookmark, removeBookmark, isBookmarked, checkBookmarkStatus } =
+    useBookmarkStore();
+  const { addWatchedMovie, removeWatchedMovie, isWatched, checkWatchedStatus } =
+    useWatchedStore();
+
+  // Check bookmark and watched status on mount
+  useEffect(() => {
+    if (isAuthenticated && movie.id) {
+      const checkStatuses = async () => {
+        try {
+          const [bookmarkStatus, watchedStatus] = await Promise.all([
+            checkBookmarkStatus(movie.id),
+            checkWatchedStatus(movie.id),
+          ]);
+          setBookmarked(bookmarkStatus);
+          setWatched(watchedStatus);
+        } catch (error) {
+          setBookmarked(isBookmarked(movie.id));
+          setWatched(isWatched(movie.id));
+        }
+      };
+      checkStatuses();
+    }
+  }, [movie.id, isAuthenticated, checkBookmarkStatus, checkWatchedStatus, isBookmarked, isWatched]);
+
+  const handleBookmarkToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast.error("Please login to bookmark movies");
+      return;
+    }
+
+    setBookmarkLoading(true);
+    try {
+      if (bookmarked) {
+        await removeBookmark(movie.id);
+        setBookmarked(false);
+        toast.success("Removed from bookmarks");
+      } else {
+        await addBookmark(movie.id, movie.title, movie.poster_path || "");
+        setBookmarked(true);
+        toast.success("Added to bookmarks");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Something went wrong");
+    } finally {
+      setBookmarkLoading(false);
+    }
+  };
+
+  const handleWatchedToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast.error("Please login to mark movies as watched");
+      return;
+    }
+
+    setWatchedLoading(true);
+    try {
+      if (watched) {
+        await removeWatchedMovie(movie.id);
+        setWatched(false);
+        toast.success("Removed from watched list");
+      } else {
+        await addWatchedMovie(movie.id, movie.title, movie.poster_path || "");
+        setWatched(true);
+        toast.success("Marked as watched");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Something went wrong");
+    } finally {
+      setWatchedLoading(false);
+    }
+  };
+
+  return (
+    <Link href={`/movies/${movie.id}`} className="group">
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden hover:bg-gray-800/70 transition-all duration-300 p-4 group-hover:scale-[1.02]">
+        <div className="flex space-x-4">
+          {/* Poster */}
+          <div className="flex-shrink-0 w-24 h-36 bg-gray-700 rounded-lg overflow-hidden relative">
+            <img
+              src={getImageUrl(movie.poster_path)}
+              alt={movie.title}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = getImageUrl(null);
+              }}
+            />
+            {/* Watched Overlay */}
+            {watched && (
+              <div className="absolute inset-0 bg-green-600/20 flex items-center justify-center">
+                <div className="bg-green-600/90 backdrop-blur-sm text-white p-1 rounded-full">
+                  <Eye className="h-4 w-4" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Movie Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-white text-lg mb-2 group-hover:text-purple-400 transition-colors duration-200 line-clamp-1">
+              {movie.title}
+            </h3>
+            
+            <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+              {movie.overview || "No overview available."}
+            </p>
+
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center text-gray-400">
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>{getYearFromDate(movie.release_date)}</span>
+              </div>
+              <div className="flex items-center">
+                <Star className="h-4 w-4 text-yellow-400 mr-1" />
+                <span className="text-white font-medium">
+                  {formatRating(movie.vote_average)}
+                </span>
+              </div>
+              {/* Status Badges */}
+              {bookmarked && (
+                <div className="flex items-center text-yellow-400">
+                  <Bookmark className="h-4 w-4 mr-1 fill-current" />
+                  <span className="text-xs">Saved</span>
+                </div>
+              )}
+              {watched && (
+                <div className="flex items-center text-green-400">
+                  <Eye className="h-4 w-4 mr-1" />
+                  <span className="text-xs">Watched</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          {showActions && (
+            <div className="flex items-center gap-2">
+              {isAuthenticated ? (
+                <>
+                  <button
+                    onClick={handleBookmarkToggle}
+                    disabled={bookmarkLoading}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      bookmarked
+                        ? "bg-yellow-600 text-white"
+                        : "bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600"
+                    } ${bookmarkLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    title={bookmarked ? "Remove bookmark" : "Add bookmark"}
+                  >
+                    {bookmarkLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current" />
+                    ) : (
+                      <Bookmark className={`h-5 w-5 ${bookmarked ? "fill-current" : ""}`} />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleWatchedToggle}
+                    disabled={watchedLoading}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      watched
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600"
+                    } ${watchedLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    title={watched ? "Mark as unwatched" : "Mark as watched"}
+                  >
+                    {watchedLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current" />
+                    ) : watched ? (
+                      <Eye className="h-5 w-5" />
+                    ) : (
+                      <EyeOff className="h-5 w-5" />
+                    )}
+                  </button>
+                </>
+              ) : (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="p-3 bg-purple-600 rounded-lg text-white">
+                    <Play className="h-5 w-5" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+};
+
+// Movie Grid Component
 interface MovieGridProps {
   movies: Movie[];
   variant?: "default" | "featured" | "compact" | "large" | "hero";
@@ -447,7 +662,6 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   showRanks = false,
   className = "",
 }) => {
-  // Default grid dengan spacing yang lebih besar
   const defaultGridCols =
     "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-8 md:gap-10";
 
@@ -477,7 +691,32 @@ export const MovieGrid: React.FC<MovieGridProps> = ({
   );
 };
 
-// Movie Row Component (Unchanged)
+// Movie List Component - NEW ADDITION
+interface MovieListProps {
+  movies: Movie[];
+  showActions?: boolean;
+  className?: string;
+}
+
+export const MovieList: React.FC<MovieListProps> = ({
+  movies,
+  showActions = true,
+  className = "",
+}) => {
+  return (
+    <div className={`space-y-4 ${className}`}>
+      {movies.map((movie) => (
+        <MovieListItem 
+          key={movie.id} 
+          movie={movie} 
+          showActions={showActions}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Movie Row Component
 interface MovieRowProps {
   movies: Movie[];
   variant?: "default" | "featured" | "compact" | "large" | "hero";
