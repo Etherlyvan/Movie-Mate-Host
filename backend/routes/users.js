@@ -420,4 +420,182 @@ router.delete("/watched/:movieId", auth, async (req, res) => {
   }
 });
 
+router.get("/profile/stats", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const stats = user.getStatistics();
+
+    res.json({
+      success: true,
+      data: { stats },
+    });
+  } catch (error) {
+    console.error("Get profile stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get profile statistics",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// PUT /api/users/profile/avatar
+router.put("/profile/avatar", auth, async (req, res) => {
+  try {
+    const { avatar } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { "profile.avatar": avatar },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Avatar updated successfully",
+      data: { user: user.toJSON() },
+    });
+  } catch (error) {
+    console.error("Update avatar error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update avatar",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// PUT /api/users/settings
+router.put("/settings", auth, async (req, res) => {
+  try {
+    const { preferences, profile } = req.body;
+    const updateData = {};
+
+    if (preferences) {
+      Object.keys(preferences).forEach((key) => {
+        updateData[`preferences.${key}`] = preferences[key];
+      });
+    }
+
+    if (profile) {
+      Object.keys(profile).forEach((key) => {
+        if (key !== "joinedDate") {
+          // Prevent updating joinedDate
+          updateData[`profile.${key}`] = profile[key];
+        }
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Settings updated successfully",
+      data: { user: user.toJSON() },
+    });
+  } catch (error) {
+    console.error("Update settings error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update settings",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// GET /api/users/activity
+router.get("/activity", auth, async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    const user = await User.findById(req.user.id).select("movieLogs watchlist");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Combine and sort recent activities
+    const activities = [];
+
+    // Add recent watched movies
+    user.movieLogs
+      .filter((log) => log.status === "watched")
+      .sort(
+        (a, b) =>
+          new Date(b.dateWatched || b.dateAdded) -
+          new Date(a.dateWatched || a.dateAdded)
+      )
+      .slice(0, limit)
+      .forEach((log) => {
+        activities.push({
+          type: "watched",
+          movieId: log.movieId,
+          movieTitle: log.movieTitle,
+          moviePoster: log.moviePoster,
+          rating: log.rating,
+          date: log.dateWatched || log.dateAdded,
+        });
+      });
+
+    // Add recent bookmarks
+    user.watchlist
+      .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
+      .slice(0, limit)
+      .forEach((bookmark) => {
+        activities.push({
+          type: "bookmarked",
+          movieId: bookmark.movieId,
+          movieTitle: bookmark.movieTitle,
+          moviePoster: bookmark.moviePoster,
+          date: bookmark.dateAdded,
+        });
+      });
+
+    // Sort all activities by date
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json({
+      success: true,
+      data: {
+        activities: activities.slice(0, limit),
+        total: activities.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get activity error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get user activity",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
 module.exports = router;

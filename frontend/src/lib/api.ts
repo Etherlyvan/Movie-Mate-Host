@@ -142,6 +142,16 @@ export const userApi = {
 
   updateProfile: (profileData: ProfileData) =>
     api.put("/users/profile", profileData),
+  // Profile & Settings
+  getProfileStats: () => api.get("/users/profile/stats"),
+
+  updateAvatar: (avatar: string) =>
+    api.put("/users/profile/avatar", { avatar }),
+
+  updateSettings: (settings: { preferences?: any; profile?: any }) =>
+    api.put("/users/settings", settings),
+
+  getUserActivity: (limit = 10) => api.get(`/users/activity?limit=${limit}`),
 
   getWatchlist: () => api.get("/users/watchlist"),
 
