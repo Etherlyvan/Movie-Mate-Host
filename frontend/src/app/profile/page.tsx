@@ -78,6 +78,13 @@ const ProfilePage: React.FC = () => {
     }
   }, []);
 
+  // ADDED: Handler for switching to activity tab
+  const handleViewAllActivity = () => {
+    setActiveTab("activity");
+    // Update URL hash to reflect the change
+    window.history.pushState({}, "", "#activity");
+  };
+
   // Create enhanced stats with missing properties
   const enhancedStats = stats
     ? {
@@ -129,6 +136,7 @@ const ProfilePage: React.FC = () => {
                 stats={enhancedStats}
                 activities={activities || []}
                 bookmarks={bookmarks || []}
+                onViewAllActivity={handleViewAllActivity} // ADDED: Pass the callback
               />
             )}
 
@@ -152,7 +160,10 @@ const ProfilePage: React.FC = () => {
             )}
 
             {activeTab === "activity" && (
-              <ActivityTab activities={activities || []} />
+              <ActivityTab
+                activities={activities || []}
+                shouldFocus={true}
+              />
             )}
 
             {activeTab === "stats" && (

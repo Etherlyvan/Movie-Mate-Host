@@ -25,6 +25,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   stats,
   activities,
   bookmarks,
+  onViewAllActivity,
 }) => {
   // Enhanced statistics calculations
   const enhancedStats = useMemo(() => {
@@ -187,8 +188,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           ))}
         </div>
 
-        {/* Recent Activity */}
-        <RecentActivitySection activities={activities} />
+        {/* Recent Activity - FIXED: Pass the callback */}
+        <RecentActivitySection
+          activities={activities}
+          onViewAllActivity={onViewAllActivity}
+        />
 
         {/* Achievement Highlights */}
         <AchievementHighlights user={user} stats={enhancedStats} />
@@ -252,10 +256,11 @@ const StatCard: React.FC<{
   </div>
 );
 
-// Recent Activity Section
-const RecentActivitySection: React.FC<{ activities: any[] }> = ({
-  activities,
-}) => (
+// Recent Activity Section - FIXED: Added proper callback for view all
+const RecentActivitySection: React.FC<{
+  activities: any[];
+  onViewAllActivity?: () => void; // Add callback prop
+}> = ({ activities, onViewAllActivity }) => (
   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
     <div className="flex items-center justify-between mb-6">
       <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -263,14 +268,13 @@ const RecentActivitySection: React.FC<{ activities: any[] }> = ({
         Recent Activity
       </h3>
       {activities.length > 6 && (
-        <Link
-          href="#activity"
-          onClick={() => (window.location.hash = "activity")}
-          className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors flex items-center gap-1"
+        <button
+          onClick={onViewAllActivity}
+          className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors flex items-center gap-1 hover:bg-blue-400/10 px-3 py-1 rounded-lg"
         >
-          View All
+          View All Activity
           <ArrowRight className="h-4 w-4" />
-        </Link>
+        </button>
       )}
     </div>
 
@@ -357,12 +361,18 @@ const ActivityItem: React.FC<{ activity: any }> = ({ activity }) => {
   );
 };
 
-// Sidebar Sections
+// Sidebar Sections - FIXED: Added proper sorting
 const RecentlyWatchedSection: React.FC<{ movieLogs: any[] }> = ({
   movieLogs,
 }) => {
   const recentWatched = movieLogs
     .filter((log) => log.status === "watched")
+    .sort((a, b) => {
+      // Sort by dateWatched first, then dateAdded, newest first
+      const dateA = new Date(a.dateWatched || a.dateAdded || 0);
+      const dateB = new Date(b.dateWatched || b.dateAdded || 0);
+      return dateB.getTime() - dateA.getTime();
+    })
     .slice(0, 5);
 
   return (
@@ -380,35 +390,52 @@ const RecentlyWatchedSection: React.FC<{ movieLogs: any[] }> = ({
         href: `/movies/${log.movieId}`,
       }))}
       emptyMessage="No movies watched yet"
-      viewAllHash="watched"
+      viewAllHref="/watched"
     />
   );
 };
 
 const RecentBookmarksSection: React.FC<{ bookmarks: any[] }> = ({
   bookmarks,
-}) => (
-  <SidebarSection
-    title="Recent Bookmarks"
-    icon={<Bookmark className="h-5 w-5 text-yellow-400" />}
-    items={bookmarks.slice(0, 5).map((bookmark) => ({
-      id: bookmark.movieId,
-      title: bookmark.movieTitle,
-      poster: bookmark.moviePoster,
-      meta: formatDistanceToNow(new Date(bookmark.dateAdded), {
-        addSuffix: true,
-      }),
-      href: `/movies/${bookmark.movieId}`,
-    }))}
-    emptyMessage="No bookmarks yet"
-    viewAllHash="bookmarks"
-  />
-);
+}) => {
+  // Sort bookmarks by dateAdded, newest first
+  const sortedBookmarks = [...bookmarks].sort((a, b) => {
+    const dateA = new Date(a.dateAdded || 0);
+    const dateB = new Date(b.dateAdded || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  return (
+    <SidebarSection
+      title="Recent Bookmarks"
+      icon={<Bookmark className="h-5 w-5 text-yellow-400" />}
+      items={sortedBookmarks.slice(0, 5).map((bookmark) => ({
+        id: bookmark.movieId,
+        title: bookmark.movieTitle,
+        poster: bookmark.moviePoster,
+        meta: formatDistanceToNow(new Date(bookmark.dateAdded), {
+          addSuffix: true,
+        }),
+        href: `/movies/${bookmark.movieId}`,
+      }))}
+      emptyMessage="No bookmarks yet"
+      viewAllHref="/bookmarks"
+    />
+  );
+};
 
 const TopRatedSection: React.FC<{ movieLogs: any[] }> = ({ movieLogs }) => {
   const topRated = movieLogs
     .filter((log) => log.rating && log.rating >= 8)
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .sort((a, b) => {
+      // First sort by rating (highest first), then by date (newest first)
+      if (b.rating !== a.rating) {
+        return (b.rating || 0) - (a.rating || 0);
+      }
+      const dateA = new Date(a.dateWatched || a.dateAdded || 0);
+      const dateB = new Date(b.dateWatched || b.dateAdded || 0);
+      return dateB.getTime() - dateA.getTime();
+    })
     .slice(0, 5);
 
   return (
@@ -426,12 +453,12 @@ const TopRatedSection: React.FC<{ movieLogs: any[] }> = ({ movieLogs }) => {
         href: `/movies/${log.movieId}`,
       }))}
       emptyMessage="Rate some movies to see your favorites"
-      viewAllHash="watched"
+      viewAllHref="/watched"
     />
   );
 };
 
-// Sidebar Section Component
+// Sidebar Section Component - FIXED: Updated interface and implementation
 interface SidebarItem {
   id: number;
   title: string;
@@ -446,8 +473,8 @@ const SidebarSection: React.FC<{
   icon: React.ReactNode;
   items: SidebarItem[];
   emptyMessage: string;
-  viewAllHash: string;
-}> = ({ title, icon, items, emptyMessage, viewAllHash }) => (
+  viewAllHref: string; // FIXED: Changed from hash to href
+}> = ({ title, icon, items, emptyMessage, viewAllHref }) => (
   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
     <div className="flex items-center justify-between mb-4">
       <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -456,8 +483,7 @@ const SidebarSection: React.FC<{
       </h3>
       {items.length > 0 && (
         <Link
-          href={`#${viewAllHash}`}
-          onClick={() => (window.location.hash = viewAllHash)}
+          href={viewAllHref} // FIXED: Use proper href instead of hash
           className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors flex items-center gap-1"
         >
           View All
@@ -500,7 +526,7 @@ const SidebarSection: React.FC<{
   </div>
 );
 
-// Achievement Highlights Component
+// Achievement Highlights Component (unchanged)
 const AchievementHighlights: React.FC<{
   user: any;
   stats: any;

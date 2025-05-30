@@ -17,6 +17,7 @@ import type { Activity } from "@/types";
 
 interface ActivityTabProps {
   activities: Activity[];
+  shouldFocus?: boolean;
 }
 
 type ActivityFilter = "all" | "watched" | "bookmarked" | "rated" | "reviewed";

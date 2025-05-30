@@ -47,10 +47,12 @@ export interface OverviewTabProps {
   stats: UserStatistics;
   activities: Activity[];
   bookmarks: Bookmark[];
+  onViewAllActivity?: () => void;
 }
 
 export interface ActivityTabProps {
   activities: Activity[];
+  shouldFocus?: boolean;
 }
 
 export interface StatsTabProps {

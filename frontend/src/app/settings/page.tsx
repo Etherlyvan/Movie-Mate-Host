@@ -30,6 +30,7 @@ import {
   Grid,
   List,
 } from "lucide-react";
+// FIXED: Import types dari index.ts
 import { UserPreferences, UserProfile } from "@/types";
 import { toast } from "react-hot-toast";
 
@@ -40,6 +41,41 @@ type SettingsSection =
   | "privacy"
   | "security"
   | "account";
+
+// FIXED: Create compatible interface for API calls
+interface ProfileUpdateData {
+  displayName?: string;
+  bio?: string;
+  country?: string;
+  website?: string;
+  favoriteGenres?: string[];
+  socialLinks?: {
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
+  };
+  avatar?: string;
+}
+
+interface PreferencesUpdateData {
+  theme?: "light" | "dark" | "auto";
+  language?: string;
+  notifications?: {
+    email?: boolean;
+    push?: boolean;
+    newReleases?: boolean;
+    recommendations?: boolean;
+  };
+  privacy?: {
+    showProfile?: boolean;
+    showWatchlist?: boolean;
+    showActivity?: boolean;
+  };
+  display?: {
+    moviesPerPage?: number;
+    defaultView?: "grid" | "list";
+  };
+}
 
 interface SettingsFormData {
   profile: Partial<UserProfile>;
@@ -117,18 +153,40 @@ const SettingsPage: React.FC = () => {
 
   // Form validation
   const validateForm = useCallback(
-    (section: SettingsSection, data: any): ValidationErrors => {
+    (
+      section: SettingsSection,
+      data: Partial<UserProfile> | Partial<UserPreferences>
+    ): ValidationErrors => {
       const errors: ValidationErrors = {};
 
       if (section === "profile") {
-        if (data.displayName && data.displayName.length > 50) {
+        const profileData = data as Partial<UserProfile>;
+
+        if (profileData.displayName && profileData.displayName.length > 50) {
           errors.displayName = "Display name must be less than 50 characters";
         }
-        if (data.bio && data.bio.length > 500) {
+        if (profileData.bio && profileData.bio.length > 500) {
           errors.bio = "Bio must be less than 500 characters";
         }
-        if (data.website && !isValidUrl(data.website)) {
+        if (profileData.website && !isValidUrl(profileData.website)) {
           errors.website = "Please enter a valid URL";
+        }
+        if (
+          profileData.favoriteGenres &&
+          profileData.favoriteGenres.length > 5
+        ) {
+          errors.favoriteGenres = "Please select up to 5 genres";
+        }
+
+        // Validate social links
+        if (profileData.socialLinks) {
+          Object.entries(profileData.socialLinks).forEach(([platform, url]) => {
+            if (url && !isValidUrl(url) && !url.startsWith("@")) {
+              errors[
+                `socialLinks.${platform}`
+              ] = `Please enter a valid ${platform} URL or username`;
+            }
+          });
         }
       }
 
@@ -179,15 +237,15 @@ const SettingsPage: React.FC = () => {
     []
   );
 
-  // Save settings
+  // FIXED: Save settings with proper type conversion
   const saveSettings = useCallback(
     async (section: SettingsSection) => {
       if (!user) return;
 
-      const errors = validateForm(
-        section,
-        formData[section === "profile" ? "profile" : "preferences"]
-      );
+      const sectionData =
+        section === "profile" ? formData.profile : formData.preferences;
+      const errors = validateForm(section, sectionData);
+
 
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
@@ -200,10 +258,88 @@ const SettingsPage: React.FC = () => {
 
       try {
         if (section === "profile") {
-          await updateProfile(formData.profile);
+          // FIXED: Create clean profile data with proper typing
+          const cleanProfileData: ProfileUpdateData = {};
+
+          if (formData.profile.displayName?.trim()) {
+            cleanProfileData.displayName = formData.profile.displayName.trim();
+          }
+
+          if (formData.profile.bio?.trim()) {
+            cleanProfileData.bio = formData.profile.bio.trim();
+          }
+
+          if (formData.profile.country?.trim()) {
+            cleanProfileData.country = formData.profile.country.trim();
+          }
+
+          if (formData.profile.website?.trim()) {
+            cleanProfileData.website = formData.profile.website.trim();
+          }
+
+          if (
+            formData.profile.favoriteGenres &&
+            formData.profile.favoriteGenres.length > 0
+          ) {
+            cleanProfileData.favoriteGenres = formData.profile.favoriteGenres;
+          }
+
+          // Handle social links
+          if (formData.profile.socialLinks) {
+            const socialLinks: {
+              twitter?: string;
+              instagram?: string;
+              facebook?: string;
+            } = {};
+            if (formData.profile.socialLinks.twitter?.trim()) {
+              socialLinks.twitter = formData.profile.socialLinks.twitter.trim();
+            }
+            if (formData.profile.socialLinks.instagram?.trim()) {
+              socialLinks.instagram =
+                formData.profile.socialLinks.instagram.trim();
+            }
+            if (formData.profile.socialLinks.facebook?.trim()) {
+              socialLinks.facebook =
+                formData.profile.socialLinks.facebook.trim();
+            }
+
+            if (Object.keys(socialLinks).length > 0) {
+              cleanProfileData.socialLinks = socialLinks;
+            }
+          }
+
+          await updateProfile(cleanProfileData);
           toast.success("Profile updated successfully");
-        } else {
-          await updatePreferences(formData.preferences);
+        } else if (
+          section === "preferences" ||
+          section === "notifications" ||
+          section === "privacy"
+        ) {
+          // FIXED: Create clean preferences data with proper typing
+          const cleanPreferencesData: PreferencesUpdateData = {};
+
+          if (formData.preferences.theme) {
+            cleanPreferencesData.theme = formData.preferences.theme;
+          }
+
+          if (formData.preferences.language) {
+            cleanPreferencesData.language = formData.preferences.language;
+          }
+
+          if (formData.preferences.notifications) {
+            cleanPreferencesData.notifications =
+              formData.preferences.notifications;
+          }
+
+          if (formData.preferences.privacy) {
+            cleanPreferencesData.privacy = formData.preferences.privacy;
+          }
+
+          if (formData.preferences.display) {
+            cleanPreferencesData.display = formData.preferences.display;
+          }
+
+          await updatePreferences(cleanPreferencesData);
           toast.success("Preferences updated successfully");
         }
 
@@ -270,12 +406,12 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* FIXED: Header */}
         <SettingsHeader hasUnsavedChanges={hasUnsavedChanges} />
 
         {/* Main Content */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar Navigation */}
+          {/* FIXED: Sidebar Navigation */}
           <SettingsSidebar
             sections={settingsSections}
             activeSection={activeSection}
@@ -342,11 +478,79 @@ const SettingsPage: React.FC = () => {
   );
 };
 
-// Settings Header Component
+// Add other utility components (FormField, SelectField, etc.)
+const FormField: React.FC<{
+  label: string;
+  value: string;
+  onChange?: (value: string) => void;
+  error?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  multiline?: boolean;
+  rows?: number;
+}> = ({
+  label,
+  value,
+  onChange,
+  error,
+  placeholder,
+  disabled,
+  multiline,
+  rows = 3,
+}) => {
+  const Component = multiline ? "textarea" : "input";
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-300 mb-2">
+        {label}
+      </label>
+      <Component
+        type={multiline ? undefined : "text"}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={multiline ? rows : undefined}
+        className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+          error ? "border-red-500" : "border-gray-600"
+        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      />
+      {error && <p className="mt-1 text-sm text-red-400">{error}</p>}
+    </div>
+  );
+};
+
+const SelectField: React.FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}> = ({ label, value, onChange, options }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-300 mb-2">
+      {label}
+    </label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      aria-label={label}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+// FIXED: Settings Header Component
 const SettingsHeader: React.FC<{ hasUnsavedChanges: boolean }> = ({
   hasUnsavedChanges,
 }) => (
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-20">
     <div>
       <h1 className="text-3xl font-bold text-white">Settings</h1>
       <p className="text-gray-400 mt-1">
@@ -365,7 +569,7 @@ const SettingsHeader: React.FC<{ hasUnsavedChanges: boolean }> = ({
   </div>
 );
 
-// Settings Sidebar Component
+// FIXED: Settings Sidebar Component
 const SettingsSidebar: React.FC<{
   sections: readonly { id: string; label: string; icon: any }[];
   activeSection: SettingsSection;
@@ -410,7 +614,7 @@ const SettingsSidebar: React.FC<{
   );
 };
 
-// Profile Settings Component
+// Add all other missing components here...
 const ProfileSettings: React.FC<{
   formData: Partial<UserProfile>;
   user: any;
@@ -453,6 +657,15 @@ const ProfileSettings: React.FC<{
       }
     },
     [onAvatarUpload]
+  );
+
+  const handleGenreChange = useCallback(
+    (genres: string[]) => {
+      if (genres.length <= 5) {
+        onUpdate("profile", "favoriteGenres", genres);
+      }
+    },
+    [onUpdate]
   );
 
   return (
@@ -613,16 +826,23 @@ const ProfileSettings: React.FC<{
         </div>
 
         {/* Favorite Genres */}
-        <GenreSelector
-          selectedGenres={formData.favoriteGenres || []}
-          onChange={(genres) => onUpdate("profile", "favoriteGenres", genres)}
-        />
+        <div>
+          <GenreSelector
+            selectedGenres={formData.favoriteGenres || []}
+            onChange={handleGenreChange}
+          />
+          {validationErrors.favoriteGenres && (
+            <p className="mt-2 text-sm text-red-400">
+              {validationErrors.favoriteGenres}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-// Preferences Settings Component
+// FIXED: Update PreferencesSettings dengan proper types
 const PreferencesSettings: React.FC<{
   formData: Partial<UserPreferences>;
   validationErrors: ValidationErrors;
@@ -679,7 +899,13 @@ const PreferencesSettings: React.FC<{
           <SelectField
             label="Theme"
             value={formData.theme || "dark"}
-            onChange={(value) => onUpdate("preferences", "theme", value)}
+            onChange={(value) =>
+              onUpdate(
+                "preferences",
+                "theme",
+                value as "light" | "dark" | "auto"
+              )
+            }
             options={[
               { value: "light", label: "Light" },
               { value: "dark", label: "Dark" },
@@ -740,40 +966,7 @@ const PreferencesSettings: React.FC<{
   </div>
 );
 
-// View Toggle Field Component using Button
-const ViewToggleField: React.FC<{
-  label: string;
-  value: "grid" | "list";
-  onChange: (value: "grid" | "list") => void;
-}> = ({ label, value, onChange }) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-300 mb-2">
-      {label}
-    </label>
-    <div className="flex space-x-2">
-      <Button
-        variant={value === "grid" ? "primary" : "outline"}
-        size="sm"
-        icon={Grid}
-        onClick={() => onChange("grid")}
-        ariaLabel="Grid view"
-      >
-        Grid
-      </Button>
-      <Button
-        variant={value === "list" ? "primary" : "outline"}
-        size="sm"
-        icon={List}
-        onClick={() => onChange("list")}
-        ariaLabel="List view"
-      >
-        List
-      </Button>
-    </div>
-  </div>
-);
-
-// Notification Settings Component
+// FIXED: Update NotificationSettings dengan proper types
 const NotificationSettings: React.FC<{
   formData: Partial<UserPreferences>;
   onNestedUpdate: (
@@ -874,7 +1067,7 @@ const NotificationSettings: React.FC<{
   </div>
 );
 
-// Privacy Settings Component
+// FIXED: Update PrivacySettings dengan proper types
 const PrivacySettings: React.FC<{
   formData: Partial<UserPreferences>;
   onNestedUpdate: (
@@ -1139,6 +1332,7 @@ const AccountSettings: React.FC<{
 };
 
 // Utility Components
+// Add remaining components and utility functions...
 const SettingsSection: React.FC<{
   title: string;
   description: string;
@@ -1157,73 +1351,136 @@ const SettingsSection: React.FC<{
   </div>
 );
 
-const FormField: React.FC<{
-  label: string;
-  value: string;
-  onChange?: (value: string) => void;
-  error?: string;
-  placeholder?: string;
-  disabled?: boolean;
-  multiline?: boolean;
-  rows?: number;
-}> = ({
-  label,
-  value,
-  onChange,
-  error,
-  placeholder,
-  disabled,
-  multiline,
-  rows = 3,
-}) => {
-  const Component = multiline ? "textarea" : "input";
+// FIXED: GenreSelector with proper limit validation
+const GenreSelector: React.FC<{
+  selectedGenres: string[];
+  onChange: (genres: string[]) => void;
+}> = ({ selectedGenres, onChange }) => {
+  const availableGenres = [
+    "Action",
+    "Adventure",
+    "Animation",
+    "Comedy",
+    "Crime",
+    "Documentary",
+    "Drama",
+    "Family",
+    "Fantasy",
+    "History",
+    "Horror",
+    "Music",
+    "Mystery",
+    "Romance",
+    "Science Fiction",
+    "TV Movie",
+    "Thriller",
+    "War",
+    "Western",
+  ];
+
+  const toggleGenre = useCallback(
+    (genre: string) => {
+      if (selectedGenres.includes(genre)) {
+        const newGenres = selectedGenres.filter((g) => g !== genre);
+        onChange(newGenres);
+      } else {
+        if (selectedGenres.length < 5) {
+          const newGenres = [...selectedGenres, genre];
+          onChange(newGenres);
+        } else {
+          toast.error("You can only select up to 5 favorite genres");
+        }
+      }
+    },
+    [selectedGenres, onChange]
+  );
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-300 mb-2">
-        {label}
-      </label>
-      <Component
-        type={multiline ? undefined : "text"}
-        value={value}
-        onChange={(e) => onChange?.(e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        rows={multiline ? rows : undefined}
-        className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-          error ? "border-red-500" : "border-gray-600"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-      />
-      {error && <p className="mt-1 text-sm text-red-400">{error}</p>}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-white font-semibold">Favorite Genres</h3>
+        <span className="text-sm text-gray-400">
+          {selectedGenres.length}/5 selected
+        </span>
+      </div>
+
+      {selectedGenres.length >= 4 && (
+        <div className="mb-4 p-3 bg-yellow-600/20 border border-yellow-600/30 rounded-lg">
+          <p className="text-yellow-400 text-sm">
+            {selectedGenres.length === 5
+              ? "Maximum of 5 genres selected. Remove a genre to select a different one."
+              : "You can select 1 more genre."}
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {availableGenres.map((genre) => {
+          const isSelected = selectedGenres.includes(genre);
+          const isDisabled = !isSelected && selectedGenres.length >= 5;
+
+          return (
+            <Button
+              key={genre}
+              variant={isSelected ? "primary" : "outline"}
+              size="sm"
+              onClick={() => toggleGenre(genre)}
+              disabled={isDisabled}
+              ariaLabel={`${
+                isSelected ? "Remove" : "Add"
+              } ${genre} from favorite genres`}
+              className={`justify-center ${
+                isDisabled ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              title={
+                isDisabled
+                  ? "Maximum 5 genres allowed. Remove a genre to select this one."
+                  : `${isSelected ? "Remove" : "Add"} ${genre}`
+              }
+            >
+              {genre}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
-const SelectField: React.FC<{
+// FIXED: ViewToggleField Component
+const ViewToggleField: React.FC<{
   label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-}> = ({ label, value, onChange, options }) => (
+  value: "grid" | "list";
+  onChange: (value: "grid" | "list") => void;
+}> = ({ label, value, onChange }) => (
   <div>
-    <label id={`select-label-${label.replace(/\s+/g, "-").toLowerCase()}`} className="block text-sm font-medium text-gray-300 mb-2">
+    <label className="block text-sm font-medium text-gray-300 mb-2">
       {label}
     </label>
-    <select
-      aria-labelledby={`select-label-${label.replace(/\s+/g, "-").toLowerCase()}`}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <div className="flex space-x-2">
+      <Button
+        variant={value === "grid" ? "primary" : "outline"}
+        size="sm"
+        icon={Grid}
+        onClick={() => onChange("grid")}
+        ariaLabel="Grid view"
+      >
+        Grid
+      </Button>
+      <Button
+        variant={value === "list" ? "primary" : "outline"}
+        size="sm"
+        icon={List}
+        onClick={() => onChange("list")}
+        ariaLabel="List view"
+      >
+        List
+      </Button>
+    </div>
   </div>
 );
 
+// FIXED: ToggleField Component
 const ToggleField: React.FC<{
   label: string;
   description: string;
@@ -1258,69 +1515,6 @@ const ToggleField: React.FC<{
           }`}
         />
       </Button>
-    </div>
-  );
-};
-
-const GenreSelector: React.FC<{
-  selectedGenres: string[];
-  onChange: (genres: string[]) => void;
-}> = ({ selectedGenres, onChange }) => {
-  const availableGenres = [
-    "Action",
-    "Adventure",
-    "Animation",
-    "Comedy",
-    "Crime",
-    "Documentary",
-    "Drama",
-    "Family",
-    "Fantasy",
-    "History",
-    "Horror",
-    "Music",
-    "Mystery",
-    "Romance",
-    "Science Fiction",
-    "TV Movie",
-    "Thriller",
-    "War",
-    "Western",
-  ];
-
-  const toggleGenre = useCallback(
-    (genre: string) => {
-      const newGenres = selectedGenres.includes(genre)
-        ? selectedGenres.filter((g) => g !== genre)
-        : [...selectedGenres, genre];
-      onChange(newGenres);
-    },
-    [selectedGenres, onChange]
-  );
-
-  return (
-    <div>
-      <h3 className="text-white font-semibold mb-4">Favorite Genres</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {availableGenres.map((genre) => {
-          const isSelected = selectedGenres.includes(genre);
-
-          return (
-            <Button
-              key={genre}
-              variant={isSelected ? "primary" : "outline"}
-              size="sm"
-              onClick={() => toggleGenre(genre)}
-              ariaLabel={`${
-                isSelected ? "Remove" : "Add"
-              } ${genre} from favorite genres`}
-              className="justify-center"
-            >
-              {genre}
-            </Button>
-          );
-        })}
-      </div>
     </div>
   );
 };

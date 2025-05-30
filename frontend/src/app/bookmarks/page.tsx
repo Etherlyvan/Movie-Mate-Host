@@ -49,6 +49,13 @@ export default function BookmarksPage() {
     }
   };
 
+  // Sort bookmarks by dateAdded (newest first)
+  const sortedBookmarks = [...bookmarks].sort((a, b) => {
+    const dateA = new Date(a.dateAdded || 0);
+    const dateB = new Date(b.dateAdded || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
   if (!mounted) {
     return null; // Prevent hydration mismatch
   }
@@ -59,10 +66,10 @@ export default function BookmarksPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
             <Bookmark className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-2xl font-bold text-white mb-2">
               Login Required
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-gray-400 mb-6">
               Please login to view your bookmarks
             </p>
             <Link
@@ -142,7 +149,8 @@ export default function BookmarksPage() {
           </div>
         ) : (
           <div className="grid gap-6">
-            {bookmarks.map((bookmark) => (
+            {/* FIXED: Use sorted bookmarks instead of original array */}
+            {sortedBookmarks.map((bookmark) => (
               <div
                 key={bookmark.movieId}
                 className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden hover:bg-gray-800/70 transition-all duration-300 group"

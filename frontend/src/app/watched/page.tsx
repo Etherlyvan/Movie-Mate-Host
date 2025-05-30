@@ -48,6 +48,13 @@ export default function WatchedMoviesPage() {
     }
   };
 
+  // Sort watched movies by date (newest first)
+  const sortedWatchedMovies = [...watchedMovies].sort((a, b) => {
+    const dateA = new Date(a.dateWatched || a.dateAdded || 0);
+    const dateB = new Date(b.dateWatched || b.dateAdded || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
   if (!mounted) return null;
 
   if (!isAuthenticated) {
@@ -139,7 +146,8 @@ export default function WatchedMoviesPage() {
           </div>
         ) : (
           <div className="grid gap-6">
-            {watchedMovies.map((movie) => (
+            {/* FIXED: Use sorted movies instead of original array */}
+            {sortedWatchedMovies.map((movie) => (
               <div
                 key={movie.movieId}
                 className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden hover:bg-gray-800/70 transition-all duration-300 group"
@@ -188,7 +196,10 @@ export default function WatchedMoviesPage() {
                       <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
-                          <span>Watched {formatDate(movie.dateWatched)}</span>
+                          <span>
+                            Watched{" "}
+                            {formatDate(movie.dateWatched || movie.dateAdded)}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Eye className="h-4 w-4 text-green-400" />
