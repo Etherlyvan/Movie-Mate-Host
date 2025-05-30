@@ -10,21 +10,22 @@
     "test": "node server-stable.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.6.3",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
-    "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
     "express-rate-limit": "^6.10.0",
     "express-validator": "^7.0.1",
-    "axios": "^1.6.0"
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.6.3",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=16.0.0"

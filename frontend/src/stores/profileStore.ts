@@ -4,6 +4,8 @@ import { userApi } from "@/lib/api";
 interface ProfileStats {
   totalMoviesWatched: number;
   totalBookmarked: number;
+  totalWatchTime: number;
+  watchingStreak: number;
   averageRating: number;
   joinedDate: string;
   lastActivity: string;

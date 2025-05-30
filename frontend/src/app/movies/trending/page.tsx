@@ -141,13 +141,13 @@ export default function TrendingPage() {
                     🎬 Browse All Movies
                   </a>
                   <a
-                    href="/movies?tab=top-rated"
+                    href="/movies?category=top-rated"
                     className="px-10 py-4 bg-gray-800/50 text-gray-300 rounded-2xl hover:bg-gray-700/70 transition-all duration-300 backdrop-blur-sm text-lg font-semibold"
                   >
                     🏆 Top Rated Movies
                   </a>
                   <a
-                    href="/movies?tab=popular"
+                    href="/movies?category=popular"
                     className="px-10 py-4 bg-gray-800/50 text-gray-300 rounded-2xl hover:bg-gray-700/70 transition-all duration-300 backdrop-blur-sm text-lg font-semibold"
                   >
                     ⭐ Popular Movies

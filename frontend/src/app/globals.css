@@ -9,6 +9,10 @@
     box-sizing: border-box;
   }
 
+  .page-with-header {
+    padding-top: var(--header-height);
+  }
+
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: rgb(17 24 39);
@@ -319,4 +323,33 @@
     padding: 10px 20px;
     font-size: 14px;
   }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Line clamp utility for text truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Smooth transitions for interactive elements */
+.transition-smooth {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }

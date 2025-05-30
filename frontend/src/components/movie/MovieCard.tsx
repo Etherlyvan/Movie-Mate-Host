@@ -125,6 +125,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const handleBookmarkToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation(); // Tambahkan ini
 
     if (!isAuthenticated) {
       toast.error("Please login to bookmark movies");
@@ -152,6 +153,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const handleWatchedToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation(); // Tambahkan ini
 
     if (!isAuthenticated) {
       toast.error("Please login to mark movies as watched");
@@ -179,6 +181,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   const handleInfoClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation(); // Tambahkan ini
+
+    // Use router.push instead of window.location.href
     window.location.href = `/movies/${movie.id}`;
   };
 
@@ -187,7 +192,19 @@ export const MovieCard: React.FC<MovieCardProps> = ({
       className={`group flex-shrink-0 ${currentVariant.container} ${className}`}
     >
       <div className="relative">
-        <Link href={`/movies/${movie.id}`} className="block">
+        {/* Wrapper Link - Handle click only when not interacting with buttons */}
+        <Link
+          href={`/movies/${movie.id}`}
+          className="block"
+          onClick={(e) => {
+            // Prevent navigation if clicking on buttons
+            const target = e.target as HTMLElement;
+            if (target.closest("button")) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+        >
           <div
             className={`relative ${currentVariant.poster} bg-gray-800 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2`}
           >
@@ -201,7 +218,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               src={getImageUrl(movie.poster_path)}
               alt={movie.title}
               className={`w-full h-full object-cover transition-all duration-700 ${
-                imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-110"
+                imageLoaded ? "opacity-100" : "opacity-0"
               } group-hover:scale-110`}
               loading="lazy"
               onLoad={() => setImageLoaded(true)}
@@ -212,9 +229,44 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               }}
             />
 
+            {/* Rank Badge */}
+            {showRank && rank && (
+              <div className="absolute top-3 left-3 z-20">
+                <div className="w-8 h-8 bg-gradient-to-br from-red-600 to-red-700 text-white text-xs font-black rounded-full flex items-center justify-center shadow-lg border-2 border-white/30">
+                  {rank}
+                </div>
+              </div>
+            )}
+
+            {/* Rating Badge */}
+            <div className="absolute top-3 right-3 z-20">
+              <div className="bg-black/80 backdrop-blur-md text-white text-xs font-semibold px-2.5 py-1 rounded-full border border-white/20 shadow-lg">
+                <Star className="h-3 w-3 inline text-yellow-400 mr-1" />
+                {formatRating(movie.vote_average)}
+              </div>
+            </div>
+
+            {/* Status Badges - Hide on hover */}
+            {isAuthenticated && (bookmarked || watched) && (
+              <div className="absolute bottom-3 left-3 z-20 flex flex-col gap-1.5 opacity-100 group-hover:opacity-0 transition-opacity duration-200">
+                {bookmarked && (
+                  <div className="bg-yellow-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full flex items-center shadow-lg">
+                    <Bookmark className="h-3 w-3 mr-1" />
+                    Saved
+                  </div>
+                )}
+                {watched && (
+                  <div className="bg-green-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full flex items-center shadow-lg">
+                    <Eye className="h-3 w-3 mr-1" />
+                    Watched
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Watched Overlay */}
             {watched && (
-              <div className="absolute inset-0 bg-green-600/20 flex items-center justify-center">
+              <div className="absolute inset-0 bg-green-600/20 flex items-center justify-center opacity-100 group-hover:opacity-0 transition-opacity duration-200">
                 <div className="bg-green-600/90 backdrop-blur-sm text-white p-2 rounded-full">
                   <Eye className="h-6 w-6" />
                 </div>
@@ -224,61 +276,39 @@ export const MovieCard: React.FC<MovieCardProps> = ({
             {/* Gradient Overlays */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            {/* Rank Badge */}
-            {showRank && rank && (
-              <div className="absolute top-4 left-4 z-10">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 text-white text-sm font-black rounded-full flex items-center justify-center shadow-2xl border-2 border-white/20">
-                    {rank}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Rating Badge */}
-            <div className="absolute top-4 right-4 z-10">
-              <div className="bg-black/80 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20 shadow-lg">
-                <Star className="h-3 w-3 inline text-yellow-400 mr-1" />
-                {formatRating(movie.vote_average)}
-              </div>
-            </div>
-
-            {/* Status Badges */}
-            {isAuthenticated && (
-              <div className="absolute top-4 left-4 flex flex-col gap-2">
-                {bookmarked && (
-                  <div className="bg-yellow-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
-                    <Bookmark className="h-3 w-3 mr-1" />
-                    Saved
-                  </div>
-                )}
-                {watched && (
-                  <div className="bg-green-500/90 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
-                    <Eye className="h-3 w-3 mr-1" />
-                    Watched
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Hover Actions - Simplified */}
+            {/* Hover Actions - IMPROVED EVENT HANDLING */}
             {showHoverActions && (
-              <div className="absolute inset-0 flex flex-col justify-end p-6 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
+              <div
+                className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0"
+                onClick={(e) => {
+                  // Prevent any click events from bubbling up
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
                 {/* Main Action Button - View Details */}
                 <button
                   onClick={handleInfoClick}
-                  className="w-full bg-white/95 hover:bg-white text-gray-900 font-bold py-3 rounded-xl transition-all duration-200 flex items-center justify-center mb-3 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="w-full bg-white/95 hover:bg-white text-gray-900 font-bold py-3 rounded-xl transition-all duration-200 flex items-center justify-center mb-3 shadow-lg hover:shadow-xl transform hover:scale-105 z-30"
+                  type="button"
                 >
                   <Info className="h-4 w-4 mr-2" />
                   View Details
                 </button>
 
-                {/* Secondary Actions - Only if authenticated */}
+                {/* Secondary Actions */}
                 {isAuthenticated && (
-                  <div className="flex space-x-2">
+                  <div
+                    className="flex space-x-2 z-30"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
                     <button
                       onClick={handleBookmarkToggle}
                       disabled={bookmarkLoading}
+                      type="button"
                       className={`flex-1 backdrop-blur-md font-semibold py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center border ${
                         bookmarked
                           ? "bg-yellow-600/90 text-white border-yellow-500/50"
@@ -302,6 +332,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                     <button
                       onClick={handleWatchedToggle}
                       disabled={watchedLoading}
+                      type="button"
                       className={`flex-1 backdrop-blur-md font-semibold py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center border ${
                         watched
                           ? "bg-green-600/90 text-white border-green-500/50"
@@ -324,12 +355,13 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                   </div>
                 )}
 
-                {/* Login prompt for non-authenticated users */}
+                {/* Login prompt */}
                 {!isAuthenticated && (
                   <div className="text-center mt-2">
                     <Link
                       href="/login"
                       className="text-xs text-blue-300 hover:text-blue-100 underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       Login to bookmark & track
                     </Link>
@@ -340,7 +372,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
           </div>
         </Link>
 
-        {/* Movie Info */}
+        {/* Movie Info - Outside the link to prevent conflicts */}
         <div className="mt-4 px-1 space-y-2">
           <Link href={`/movies/${movie.id}`}>
             <h3
@@ -364,12 +396,13 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               </div>
             </div>
 
-            {/* Quick Actions - Simplified */}
+            {/* Quick Actions */}
             {isAuthenticated && (
               <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
                   onClick={handleBookmarkToggle}
                   disabled={bookmarkLoading}
+                  type="button"
                   className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-50"
                   title={
                     bookmarked ? "Remove from bookmarks" : "Add to bookmarks"
@@ -386,6 +419,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                 <button
                   onClick={handleWatchedToggle}
                   disabled={watchedLoading}
+                  type="button"
                   className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-50"
                   title={watched ? "Mark as unwatched" : "Mark as watched"}
                 >
@@ -416,20 +450,6 @@ export const MovieCard: React.FC<MovieCardProps> = ({
               )}
             </div>
           )}
-
-          {/* Genres (for larger variants) */}
-          {(variant === "large" || variant === "hero") && movie.genre_ids && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {movie.genre_ids.slice(0, 2).map((genreId) => (
-                <span
-                  key={genreId}
-                  className="px-2 py-1 text-xs bg-gray-800/50 text-gray-300 rounded-full"
-                >
-                  Genre {genreId}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -442,9 +462,9 @@ interface MovieListItemProps {
   showActions?: boolean;
 }
 
-export const MovieListItem: React.FC<MovieListItemProps> = ({ 
-  movie, 
-  showActions = true 
+export const MovieListItem: React.FC<MovieListItemProps> = ({
+  movie,
+  showActions = true,
 }) => {
   const [bookmarked, setBookmarked] = useState(false);
   const [watched, setWatched] = useState(false);
@@ -475,7 +495,14 @@ export const MovieListItem: React.FC<MovieListItemProps> = ({
       };
       checkStatuses();
     }
-  }, [movie.id, isAuthenticated, checkBookmarkStatus, checkWatchedStatus, isBookmarked, isWatched]);
+  }, [
+    movie.id,
+    isAuthenticated,
+    checkBookmarkStatus,
+    checkWatchedStatus,
+    isBookmarked,
+    isWatched,
+  ]);
 
   const handleBookmarkToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -561,7 +588,7 @@ export const MovieListItem: React.FC<MovieListItemProps> = ({
             <h3 className="font-semibold text-white text-lg mb-2 group-hover:text-purple-400 transition-colors duration-200 line-clamp-1">
               {movie.title}
             </h3>
-            
+
             <p className="text-gray-400 text-sm mb-3 line-clamp-2">
               {movie.overview || "No overview available."}
             </p>
@@ -605,13 +632,19 @@ export const MovieListItem: React.FC<MovieListItemProps> = ({
                       bookmarked
                         ? "bg-yellow-600 text-white"
                         : "bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600"
-                    } ${bookmarkLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    } ${
+                      bookmarkLoading ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     title={bookmarked ? "Remove bookmark" : "Add bookmark"}
                   >
                     {bookmarkLoading ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current" />
                     ) : (
-                      <Bookmark className={`h-5 w-5 ${bookmarked ? "fill-current" : ""}`} />
+                      <Bookmark
+                        className={`h-5 w-5 ${
+                          bookmarked ? "fill-current" : ""
+                        }`}
+                      />
                     )}
                   </button>
                   <button
@@ -706,11 +739,7 @@ export const MovieList: React.FC<MovieListProps> = ({
   return (
     <div className={`space-y-4 ${className}`}>
       {movies.map((movie) => (
-        <MovieListItem 
-          key={movie.id} 
-          movie={movie} 
-          showActions={showActions}
-        />
+        <MovieListItem key={movie.id} movie={movie} showActions={showActions} />
       ))}
     </div>
   );

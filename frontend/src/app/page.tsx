@@ -4,16 +4,9 @@ import React, { useEffect, useState } from "react";
 import { movieApi } from "@/lib/api";
 import { Movie, Genre } from "@/types";
 import { getImageUrl, formatRating, getYearFromDate } from "@/lib/utils";
-import {
-  TrendingUp,
-  Star,
-  Calendar,
-  Play,
-  Info,
-  ArrowRight,
-} from "lucide-react";
+import { TrendingUp, Star, Calendar, Info, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { MovieRow } from "@/components/movie/MovieCard";
+import { MovieCard } from "@/components/movie/MovieCard";
 
 interface HomePageData {
   popular: Movie[];
@@ -46,9 +39,9 @@ export default function HomePage() {
           ]);
 
         setData({
-          popular: popularRes.data.data.results.slice(0, 20),
-          trending: trendingRes.data.data.results.slice(0, 20),
-          topRated: topRatedRes.data.data.results.slice(0, 20),
+          popular: popularRes.data.data.results.slice(0, 10), // 10 movies
+          trending: trendingRes.data.data.results.slice(0, 10), // 10 movies
+          topRated: topRatedRes.data.data.results.slice(0, 10), // 10 movies
           genres: genresRes.data.data.genres,
         });
       } catch (err) {
@@ -79,14 +72,13 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="relative z-10 -mt-20 md:-mt-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 md:space-y-16 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16 pb-16">
           {/* Trending Movies */}
           <MovieSection
             title="Trending Now"
             movies={data.trending}
             icon={<TrendingUp className="h-6 w-6 text-red-500" />}
             viewAllLink="/movies/trending"
-            variant="featured"
             showRanks={true}
           />
 
@@ -95,8 +87,7 @@ export default function HomePage() {
             title="Popular Movies"
             movies={data.popular}
             icon={<Star className="h-6 w-6 text-yellow-500" />}
-            viewAllLink="/movies/popular"
-            variant="default"
+            viewAllLink="/movies?category=popular"
           />
 
           {/* Top Rated Movies */}
@@ -104,8 +95,7 @@ export default function HomePage() {
             title="Top Rated"
             movies={data.topRated}
             icon={<Star className="h-6 w-6 text-green-500" />}
-            viewAllLink="/movies/top-rated"
-            variant="default"
+            viewAllLink="/movies?category=top-rated"
           />
 
           {/* Genres Section */}
@@ -119,13 +109,12 @@ export default function HomePage() {
   );
 }
 
-// Movie Section Component
+// Movie Section Component - SIMPLIFIED GRID LAYOUT
 interface MovieSectionProps {
   title: string;
   movies: Movie[];
   icon: React.ReactNode;
   viewAllLink: string;
-  variant?: "default" | "featured" | "compact" | "large";
   showRanks?: boolean;
 }
 
@@ -134,11 +123,11 @@ const MovieSection: React.FC<MovieSectionProps> = ({
   movies,
   icon,
   viewAllLink,
-  variant = "default",
   showRanks = false,
 }) => {
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
+      {/* Section Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <div className="mr-4">{icon}</div>
@@ -154,16 +143,39 @@ const MovieSection: React.FC<MovieSectionProps> = ({
         </Link>
       </div>
 
-      <MovieRow
-        movies={movies.slice(0, 12)}
-        variant={variant}
-        showRanks={showRanks}
-      />
+      {/* Movies Grid - 2 rows, 5 columns each */}
+      <div className="space-y-6">
+        {/* First Row - Movies 1-5 */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+          {movies.slice(0, 5).map((movie, index) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              variant="default"
+              showRank={showRanks}
+              rank={showRanks ? index + 1 : undefined}
+            />
+          ))}
+        </div>
+
+        {/* Second Row - Movies 6-10 */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+          {movies.slice(5, 10).map((movie, index) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              variant="default"
+              showRank={showRanks}
+              rank={showRanks ? index + 6 : undefined}
+            />
+          ))}
+        </div>
+      </div>
     </section>
   );
 };
 
-// Hero Section Component (Simplified)
+// Hero Section Component (Same as before)
 const HeroSection: React.FC<{ movie: Movie }> = ({ movie }) => {
   return (
     <div className="relative h-screen overflow-hidden">
@@ -223,10 +235,8 @@ const HeroSection: React.FC<{ movie: Movie }> = ({ movie }) => {
                 href={`/movies/${movie.id}`}
                 className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-100 transition-all duration-200 transform hover:scale-105"
               >
-                <button className="inline-flex items-center justify-center px-2 py-2 bg-white/20 backdrop-blur-sm text-gray font-semibold rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30">
-                  <Info className="h-5 w-5 mr-3" />
-                  More Info
-                </button>
+                <Info className="h-5 w-5 mr-3" />
+                More Info
               </Link>
             </div>
           </div>
@@ -236,10 +246,10 @@ const HeroSection: React.FC<{ movie: Movie }> = ({ movie }) => {
   );
 };
 
-// Genre Section Component
+// Genre Section Component (Same as before)
 const GenreSection: React.FC<{ genres: Genre[] }> = ({ genres }) => {
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
       <h2 className="text-2xl md:text-3xl font-bold text-white">
         Browse by Genre
       </h2>
@@ -248,7 +258,7 @@ const GenreSection: React.FC<{ genres: Genre[] }> = ({ genres }) => {
         {genres.slice(0, 12).map((genre) => (
           <Link
             key={genre.id}
-            href={`/movies/genre/${genre.id}?name=${encodeURIComponent(
+            href={`/movies?genre=${genre.id}&name=${encodeURIComponent(
               genre.name
             )}`}
             className="group"
@@ -266,7 +276,7 @@ const GenreSection: React.FC<{ genres: Genre[] }> = ({ genres }) => {
   );
 };
 
-// CTA Section Component
+// CTA Section Component (Same as before)
 const CTASection: React.FC = () => {
   return (
     <section className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-3xl p-8 md:p-12 text-center text-white shadow-2xl">
@@ -297,7 +307,7 @@ const CTASection: React.FC = () => {
   );
 };
 
-// Loading Screen Component
+// Loading Screen Component (Same as before)
 const LoadingScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -309,7 +319,7 @@ const LoadingScreen: React.FC = () => {
   );
 };
 
-// Error Screen Component
+// Error Screen Component (Same as before)
 const ErrorScreen: React.FC<{ error: string }> = ({ error }) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">

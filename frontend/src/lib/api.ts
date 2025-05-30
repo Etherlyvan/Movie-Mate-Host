@@ -61,21 +61,18 @@ interface LoginCredentials {
 }
 
 interface ProfileData {
-  username?: string;
-  email?: string;
-  profile?: {
-    bio?: string;
-    favoriteGenres?: string[];
-    country?: string;
+  displayName?: string;
+  bio?: string;
+  country?: string;
+  website?: string;
+  dateOfBirth?: string;
+  favoriteGenres?: string[];
+  socialLinks?: {
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
   };
-  preferences?: {
-    theme?: string;
-    language?: string;
-    notifications?: {
-      email?: boolean;
-      push?: boolean;
-    };
-  };
+  avatar?: string;
 }
 
 interface BookmarkData {
@@ -115,9 +112,12 @@ export const movieApi = {
   // Get genres
   getGenres: () => api.get("/movies/genres"),
 
-// Get movies by genre
-getByGenre: (genreId: string | number, page = 1, sortBy = "popularity.desc") =>
-  api.get(`/movies/genre/${genreId}?page=${page}&sort_by=${sortBy}`), // Gunakan sort_by
+  // Get movies by genre
+  getByGenre: (
+    genreId: string | number,
+    page = 1,
+    sortBy = "popularity.desc"
+  ) => api.get(`/movies/genre/${genreId}?page=${page}&sort_by=${sortBy}`),
 
   // Get movie recommendations
   getRecommendations: (id: string | number, page = 1) =>
@@ -138,22 +138,30 @@ export const authApi = {
 };
 
 export const userApi = {
+  // Profile functions - Fixed endpoints
   getProfile: () => api.get("/users/profile"),
 
   updateProfile: (profileData: ProfileData) =>
     api.put("/users/profile", profileData),
-  // Profile & Settings
+
   getProfileStats: () => api.get("/users/profile/stats"),
+
+  // Avatar functions - Fixed endpoints to match backend
+  uploadAvatar: (formData: FormData) =>
+    api.post("/users/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }),
 
   updateAvatar: (avatar: string) =>
     api.put("/users/profile/avatar", { avatar }),
 
-  updateSettings: (settings: { preferences?: any; profile?: any }) =>
-    api.put("/users/settings", settings),
+  // Settings function - Fixed endpoint
+  updateSettings: (settings: any) => api.put("/users/settings", settings),
 
+  // Activity function
   getUserActivity: (limit = 10) => api.get(`/users/activity?limit=${limit}`),
-
-  getWatchlist: () => api.get("/users/watchlist"),
 
   // Bookmark functions
   getBookmarks: () => api.get("/users/bookmarks"),

@@ -1,11 +1,74 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
 const auth = require("../middleware/auth");
 const User = require("../models/User");
 const {
   validateBookmark,
   handleValidationErrors,
 } = require("../middleware/validation");
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
+// Upload avatar function
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
+    // For now, we'll convert to base64 (in production, use cloud storage like Cloudinary)
+    const base64Avatar = `data:${
+      req.file.mimetype
+    };base64,${req.file.buffer.toString("base64")}`;
+
+    // Update user avatar
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { "profile.avatar": base64Avatar },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Avatar uploaded successfully",
+      data: {
+        avatarUrl: base64Avatar,
+        user: user.toJSON(),
+      },
+    });
+  } catch (error) {
+    console.error("Upload avatar error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to upload avatar",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
 
 // GET /api/users/profile
 router.get("/profile", auth, async (req, res) => {
@@ -31,29 +94,49 @@ router.get("/profile", auth, async (req, res) => {
   }
 });
 
-// PUT /api/users/profile
+// PUT /api/users/profile - Updated to handle all profile fields
 router.put("/profile", auth, async (req, res) => {
   try {
-    const allowedUpdates = [
-      "profile.bio",
-      "profile.favoriteGenres",
-      "profile.country",
-      "preferences",
-    ];
-    const updates = {};
+    const {
+      profile,
+      displayName,
+      bio,
+      country,
+      website,
+      dateOfBirth,
+      favoriteGenres,
+      socialLinks,
+      avatar,
+    } = req.body;
 
-    // Filter allowed updates
-    Object.keys(req.body).forEach((key) => {
-      if (
-        allowedUpdates.some((allowed) => key.startsWith(allowed.split(".")[0]))
-      ) {
-        updates[key] = req.body[key];
-      }
-    });
+    const updateData = {};
+
+    // Handle nested profile object or individual fields
+    if (profile) {
+      Object.keys(profile).forEach((key) => {
+        if (key !== "joinedDate" && profile[key] !== undefined) {
+          updateData[`profile.${key}`] = profile[key];
+        }
+      });
+    } else {
+      // Handle individual fields for backward compatibility
+      if (displayName !== undefined)
+        updateData["profile.displayName"] = displayName;
+      if (bio !== undefined) updateData["profile.bio"] = bio;
+      if (country !== undefined) updateData["profile.country"] = country;
+      if (website !== undefined) updateData["profile.website"] = website;
+      if (avatar !== undefined) updateData["profile.avatar"] = avatar;
+      if (dateOfBirth !== undefined)
+        updateData["profile.dateOfBirth"] = dateOfBirth;
+      if (favoriteGenres !== undefined)
+        updateData["profile.favoriteGenres"] = favoriteGenres;
+      if (socialLinks !== undefined)
+        updateData["profile.socialLinks"] = socialLinks;
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { $set: updates },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
 
@@ -74,6 +157,90 @@ router.put("/profile", auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update profile",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// POST /api/users/avatar - Upload avatar route
+router.post("/avatar", auth, upload.single("avatar"), uploadAvatar);
+
+// PUT /api/users/profile/avatar - Update avatar URL
+router.put("/profile/avatar", auth, async (req, res) => {
+  try {
+    const { avatar } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { "profile.avatar": avatar },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Avatar updated successfully",
+      data: { user: user.toJSON() },
+    });
+  } catch (error) {
+    console.error("Update avatar error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update avatar",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// PUT /api/users/settings
+router.put("/settings", auth, async (req, res) => {
+  try {
+    const { preferences, profile } = req.body;
+    const updateData = {};
+
+    if (preferences) {
+      Object.keys(preferences).forEach((key) => {
+        updateData[`preferences.${key}`] = preferences[key];
+      });
+    }
+
+    if (profile) {
+      Object.keys(profile).forEach((key) => {
+        if (key !== "joinedDate") {
+          updateData[`profile.${key}`] = profile[key];
+        }
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Settings updated successfully",
+      data: { user: user.toJSON() },
+    });
+  } catch (error) {
+    console.error("Update settings error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update settings",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
@@ -441,88 +608,6 @@ router.get("/profile/stats", auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to get profile statistics",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-});
-
-// PUT /api/users/profile/avatar
-router.put("/profile/avatar", auth, async (req, res) => {
-  try {
-    const { avatar } = req.body;
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { "profile.avatar": avatar },
-      { new: true, runValidators: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    res.json({
-      success: true,
-      message: "Avatar updated successfully",
-      data: { user: user.toJSON() },
-    });
-  } catch (error) {
-    console.error("Update avatar error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update avatar",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-});
-
-// PUT /api/users/settings
-router.put("/settings", auth, async (req, res) => {
-  try {
-    const { preferences, profile } = req.body;
-    const updateData = {};
-
-    if (preferences) {
-      Object.keys(preferences).forEach((key) => {
-        updateData[`preferences.${key}`] = preferences[key];
-      });
-    }
-
-    if (profile) {
-      Object.keys(profile).forEach((key) => {
-        if (key !== "joinedDate") {
-          // Prevent updating joinedDate
-          updateData[`profile.${key}`] = profile[key];
-        }
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    res.json({
-      success: true,
-      message: "Settings updated successfully",
-      data: { user: user.toJSON() },
-    });
-  } catch (error) {
-    console.error("Update settings error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update settings",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }

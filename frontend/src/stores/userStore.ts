@@ -1,8 +1,8 @@
 // frontend/src/stores/userStore.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { User, UserPreferences, UserProfile } from "@/types";
-import { userApi } from "@/lib/api";
+import { User, UserPreferences } from "@/types";
+import { userApi, ProfileData } from "@/lib/api";
 
 interface UserState {
   user: User | null;
@@ -12,8 +12,9 @@ interface UserState {
 
   // Actions
   fetchUser: () => Promise<void>;
-  updateProfile: (profileData: Partial<UserProfile>) => Promise<void>;
+  updateProfile: (profileData: ProfileData) => Promise<void>;
   updatePreferences: (preferences: Partial<UserPreferences>) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<{ url: string }>;
   updateAvatar: (avatar: string) => Promise<void>;
   clearUser: () => void;
   clearError: () => void;
@@ -62,13 +63,11 @@ export const useUserStore = create<UserState>()(
         }
       },
 
-      updateProfile: async (profileData: Partial<UserProfile>) => {
+      updateProfile: async (profileData: ProfileData) => {
         set({ isLoading: true, error: null });
 
         try {
-          const response = await userApi.updateProfile({
-            profile: profileData,
-          });
+          const response = await userApi.updateProfile(profileData);
           set({
             user: response.data.data.user,
             isLoading: false,
@@ -99,6 +98,45 @@ export const useUserStore = create<UserState>()(
           set({
             error:
               error.response?.data?.message || "Failed to update preferences",
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      uploadAvatar: async (file: File): Promise<{ url: string }> => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const formData = new FormData();
+          formData.append("avatar", file);
+
+          const response = await userApi.uploadAvatar(formData);
+
+          // Update user with new avatar URL
+          const currentUser = get().user;
+          if (currentUser) {
+            const newAvatarUrl = response.data.data.avatarUrl;
+            set({
+              user: {
+                ...currentUser,
+                profile: {
+                  ...currentUser.profile,
+                  avatar: newAvatarUrl,
+                },
+              },
+              isLoading: false,
+              lastFetched: Date.now(),
+            });
+
+            return { url: newAvatarUrl };
+          }
+
+          return { url: response.data.data.avatarUrl };
+        } catch (error: any) {
+          console.error("Upload avatar error:", error);
+          set({
+            error: error.response?.data?.message || "Failed to upload avatar",
             isLoading: false,
           });
           throw error;
