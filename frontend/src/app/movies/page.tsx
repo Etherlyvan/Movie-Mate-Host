@@ -4,8 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { movieApi } from "@/lib/api";
 import { Movie } from "@/types";
-import { MovieGrid } from "@/components/movie/MovieCard";
-import { TrendingUp, Star, Award } from "lucide-react";
+import { MovieGrid, MovieList } from "@/components/movie/MovieCard";
+import { TrendingUp, Star, Award, Filter, Grid, List } from "lucide-react";
 
 // Separate component to handle search params
 const MoviesContent = () => {
@@ -24,7 +24,7 @@ const MoviesContent = () => {
   // Determine if this is a genre view
   const isGenreView = !!(genreParam && genreNameParam);
 
-  // Determine initial tab based on URL params - FIXED LOGIC
+  // Determine initial tab based on URL params
   const getInitialTab = (): "popular" | "top-rated" => {
     if (categoryParam === "top-rated") return "top-rated";
     return "popular";
@@ -38,6 +38,10 @@ const MoviesContent = () => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  
+  // Add sort and view mode states
+  const [sortBy, setSortBy] = useState("popularity.desc");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const tabs = [
     {
@@ -54,12 +58,13 @@ const MoviesContent = () => {
     },
   ] as const;
 
-  // Reset state when URL params change - SIMPLIFIED LOGIC
+  // Reset state when URL params change
   useEffect(() => {
     console.log("URL params changed, resetting state");
     setPage(1);
     setMovies([]);
     setError(null);
+    setSortBy("popularity.desc"); // Reset sort when changing views
 
     // Update activeTab only if not in genre view
     if (!isGenreView && categoryParam) {
@@ -68,7 +73,7 @@ const MoviesContent = () => {
     }
   }, [categoryParam, genreParam, genreNameParam, isGenreView]);
 
-  // Fetch movies effect - FIXED LOGIC
+  // Fetch movies effect - FIXED to include sortBy dependency
   useEffect(() => {
     const fetchMovies = async () => {
       console.log("Fetching movies:", {
@@ -76,6 +81,7 @@ const MoviesContent = () => {
         genreParam,
         activeTab,
         page,
+        sortBy,
       });
 
       setLoading(true);
@@ -85,9 +91,9 @@ const MoviesContent = () => {
         let response;
 
         if (isGenreView && genreParam) {
-          console.log("Fetching by genre:", genreParam);
-          // Fetch movies by genre
-          response = await movieApi.getByGenre(genreParam, page);
+          console.log("Fetching by genre:", genreParam, "with sortBy:", sortBy);
+          // Fetch movies by genre with sortBy
+          response = await movieApi.getByGenre(genreParam, page, sortBy);
         } else {
           console.log("Fetching by category:", activeTab);
           // Fetch movies by category (only popular and top-rated)
@@ -119,7 +125,7 @@ const MoviesContent = () => {
     };
 
     fetchMovies();
-  }, [activeTab, page, isGenreView, genreParam]);
+  }, [activeTab, page, isGenreView, genreParam, sortBy]); // Added sortBy to dependencies
 
   const handleTabChange = (tab: typeof activeTab) => {
     setActiveTab(tab);
@@ -132,6 +138,13 @@ const MoviesContent = () => {
     url.searchParams.delete("genre");
     url.searchParams.delete("name");
     window.history.pushState({}, "", url.toString());
+  };
+
+  const handleSortChange = (newSortBy: string) => {
+    console.log("Sort changed to:", newSortBy);
+    setSortBy(newSortBy);
+    setPage(1);
+    setMovies([]);
   };
 
   const loadMore = () => {
@@ -173,7 +186,7 @@ const MoviesContent = () => {
           </div>
         </div>
 
-        {/* Trending Banner - Add link to trending page */}
+        {/* Trending Banner */}
         <div className="mb-12">
           <a
             href="/movies/trending"
@@ -229,18 +242,68 @@ const MoviesContent = () => {
           </div>
         )}
 
-        {/* Genre View Navigation */}
+        {/* Genre View Navigation with Controls */}
         {isGenreView && (
           <div className="mb-16">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-4 bg-gray-800/30 rounded-2xl p-6 backdrop-blur-sm border border-gray-700/50">
-                <div className="flex items-center gap-2 text-purple-400">
-                  <Star className="h-5 w-5" />
-                  <span className="font-medium">Genre:</span>
+            <div className="space-y-6">
+              {/* Genre Badge */}
+              <div className="text-center">
+                <div className="inline-flex items-center gap-4 bg-gray-800/30 rounded-2xl p-6 backdrop-blur-sm border border-gray-700/50">
+                  <div className="flex items-center gap-2 text-purple-400">
+                    <Star className="h-5 w-5" />
+                    <span className="font-medium">Genre:</span>
+                  </div>
+                  <span className="text-white text-lg font-semibold">
+                    {genreNameParam}
+                  </span>
                 </div>
-                <span className="text-white text-lg font-semibold">
-                  {genreNameParam}
-                </span>
+              </div>
+
+              {/* Sort and View Controls */}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                {/* Sort By */}
+                <div className="flex items-center bg-gray-800/50 rounded-lg px-4 py-2">
+                  <Filter className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-400 mr-3">Sort by:</span>
+                  <select
+                    aria-label="Sort movies"
+                    value={sortBy}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    className="bg-transparent text-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="popularity.desc" className="bg-gray-800">Most Popular</option>
+                    <option value="release_date.desc" className="bg-gray-800">Newest First</option>
+                    <option value="release_date.asc" className="bg-gray-800">Oldest First</option>
+                    <option value="vote_average.desc" className="bg-gray-800">Highest Rated</option>
+                    <option value="title.asc" className="bg-gray-800">A-Z</option>
+                  </select>
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="flex items-center space-x-2 bg-gray-800/50 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-2.5 rounded-md transition-all duration-200 ${
+                      viewMode === "grid"
+                        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                    aria-label="Grid view"
+                  >
+                    <Grid className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`p-2.5 rounded-md transition-all duration-200 ${
+                      viewMode === "list"
+                        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                    aria-label="List view"
+                  >
+                    <List className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -301,14 +364,22 @@ const MoviesContent = () => {
               </div>
             </div>
 
-            {/* Movies Grid */}
+            {/* Movies Grid/List */}
             <div className="mb-20">
               {movies.length > 0 ? (
-                <MovieGrid
-                  movies={movies}
-                  variant="default"
-                  className="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-8 md:gap-10"
-                />
+                viewMode === "grid" ? (
+                  <MovieGrid
+                    movies={movies}
+                    variant="default"
+                    className="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-8 md:gap-10"
+                  />
+                ) : (
+                  <MovieList
+                    movies={movies}
+                    showActions={true}
+                    className="max-w-5xl mx-auto"
+                  />
+                )
               ) : (
                 <div className="text-center py-20">
                   <div className="text-gray-500 text-6xl mb-4">🎬</div>
