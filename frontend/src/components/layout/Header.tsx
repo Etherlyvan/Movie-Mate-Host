@@ -1,10 +1,12 @@
+// frontend/src/components/layout/Header.tsx - Update bagian notifications
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Film, Bell, User, Bookmark, Eye } from "lucide-react";
+import { Search, Film, User, Bookmark, Eye } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import styles from "./Header.module.css";
 
 export const Header: React.FC = () => {
@@ -127,15 +129,12 @@ export const Header: React.FC = () => {
                 </form>
               </div>
 
-              {/* Notifications */}
-              <button
-                className="hidden md:flex relative p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
-                title="Notifications"
-                aria-label="Notifications"
-              >
-                <Bell className="h-5 w-5" />
-                <div className="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full" />
-              </button>
+              {/* Notifications - UPDATED */}
+              {isAuthenticated && (
+                <div className="hidden md:block">
+                  <NotificationDropdown />
+                </div>
+              )}
 
               {/* User Menu */}
               {isAuthenticated ? (
@@ -320,6 +319,12 @@ export const Header: React.FC = () => {
               {isAuthenticated && (
                 <>
                   <hr className="my-4 border-gray-800" />
+
+                  {/* Mobile Notifications */}
+                  <div className="px-4 py-2">
+                    <NotificationDropdown />
+                  </div>
+
                   <Link
                     href="/bookmarks"
                     onClick={() => setIsMenuOpen(false)}

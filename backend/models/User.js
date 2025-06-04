@@ -173,6 +173,13 @@ const userSchema = new mongoose.Schema(
         },
       },
     },
+    pushSubscription: {
+      endpoint: String,
+      keys: {
+        p256dh: String,
+        auth: String,
+      },
+    },
     statistics: {
       totalMoviesWatched: {
         type: Number,

@@ -16,6 +16,11 @@ interface UserState {
   updatePreferences: (preferences: Partial<UserPreferences>) => Promise<void>;
   uploadAvatar: (file: File) => Promise<{ url: string }>;
   updateAvatar: (avatar: string) => Promise<void>;
+
+  // NEW: Push notification methods
+  updatePushSubscription: (subscription: any) => Promise<void>;
+  removePushSubscription: () => Promise<void>;
+
   clearUser: () => void;
   clearError: () => void;
 
@@ -116,7 +121,8 @@ export const useUserStore = create<UserState>()(
           // Update user with new avatar URL
           const currentUser = get().user;
           if (currentUser) {
-            const newAvatarUrl = response.data.data.avatarUrl;
+            const newAvatarUrl =
+              response.data.data?.avatarUrl || response.data.url;
             set({
               user: {
                 ...currentUser,
@@ -132,7 +138,7 @@ export const useUserStore = create<UserState>()(
             return { url: newAvatarUrl };
           }
 
-          return { url: response.data.data.avatarUrl };
+          return { url: response.data.data?.avatarUrl || response.data.url };
         } catch (error: any) {
           console.error("Upload avatar error:", error);
           set({
@@ -160,6 +166,51 @@ export const useUserStore = create<UserState>()(
             isLoading: false,
           });
           throw error;
+        }
+      },
+
+      // NEW: Push notification methods
+      updatePushSubscription: async (subscription: any) => {
+        const currentUser = get().user;
+        if (currentUser) {
+          // Update local state immediately for better UX
+          set({
+            user: {
+              ...currentUser,
+              pushSubscription: subscription,
+              preferences: {
+                ...currentUser.preferences,
+                notifications: {
+                  ...currentUser.preferences?.notifications,
+                  push: true,
+                },
+              },
+            },
+            lastFetched: Date.now(),
+          });
+        }
+      },
+
+      removePushSubscription: async () => {
+        const currentUser = get().user;
+        if (currentUser) {
+          // Update local state immediately for better UX
+          const updatedUser = { ...currentUser };
+          delete updatedUser.pushSubscription;
+
+          set({
+            user: {
+              ...updatedUser,
+              preferences: {
+                ...currentUser.preferences,
+                notifications: {
+                  ...currentUser.preferences?.notifications,
+                  push: false,
+                },
+              },
+            },
+            lastFetched: Date.now(),
+          });
         }
       },
 

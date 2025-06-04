@@ -7,6 +7,7 @@ const morgan = require("morgan");
 require("dotenv").config();
 
 const app = express();
+const notificationRoutes = require("./routes/notifications");
 
 console.log("🚀 Starting Movie Tracker API Server...");
 
@@ -261,5 +262,8 @@ process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
   gracefulShutdown("Uncaught Exception");
 });
+
+// Routes
+app.use("/api/notifications", notificationRoutes);
 
 module.exports = app;

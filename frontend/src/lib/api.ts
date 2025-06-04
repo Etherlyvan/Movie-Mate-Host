@@ -188,6 +188,20 @@ export const userApi = {
     api.get(`/users/watched/check/${movieId}`),
 };
 
+export const notificationApi = {
+  subscribe: (subscription: any) => 
+    api.post('/notifications/subscribe', { subscription }),
+    
+  unsubscribe: (endpoint: string) => 
+    api.post('/notifications/unsubscribe', { endpoint }),
+    
+  sendTest: () => 
+    api.post('/notifications/test'),
+    
+  sendBulk: (userIds: string[], notification: any) => 
+    api.post('/notifications/bulk', { userIds, notification }),
+};
+
 // Export types for use in components
 export type {
   RegisterData,

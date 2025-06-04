@@ -159,6 +159,13 @@ export interface User {
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
+  pushSubscription?: {
+    endpoint: string;
+    keys: {
+      p256dh: string;
+      auth: string;
+    };
+  };
 }
 
 export interface UserProfile {
@@ -180,13 +187,14 @@ export interface UserProfile {
 }
 
 export interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
+  theme: "light" | "dark" | "auto";
   language: string;
   notifications: {
     email: boolean;
     push: boolean;
     newReleases: boolean;
     recommendations: boolean;
+    bookmarkReminders?: boolean; // NEW
   };
   privacy: {
     showProfile: boolean;
@@ -195,10 +203,9 @@ export interface UserPreferences {
   };
   display: {
     moviesPerPage: number;
-    defaultView: 'grid' | 'list';
+    defaultView: "grid" | "list";
   };
 }
-
 export interface UserStatistics {
   totalMoviesWatched: number;
   totalWatchTime: number;
@@ -213,7 +220,7 @@ export interface MovieLog {
   movieId: number;
   movieTitle: string;
   moviePoster: string;
-  status: 'watched' | 'watching' | 'want_to_watch' | 'dropped';
+  status: "watched" | "watching" | "want_to_watch" | "dropped";
   rating?: number;
   review?: string;
   dateAdded: Date;
@@ -230,7 +237,7 @@ export interface WatchlistItem {
 }
 
 export interface Activity {
-  type: 'watched' | 'bookmarked' | 'rated' | 'reviewed';
+  type: "watched" | "bookmarked" | "rated" | "reviewed";
   movieId: number;
   movieTitle: string;
   moviePoster: string;
