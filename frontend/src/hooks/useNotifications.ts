@@ -1,7 +1,7 @@
-// frontend/src/hooks/useNotifications.ts - Update yang diperlukan
+// frontend/src/hooks/useNotifications.ts
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
-import { useUserStore } from "@/stores/userStore"; // NEW
+import { useUserStore } from "@/stores/userStore";
 
 interface UseNotificationsReturn {
   isSupported: boolean;
@@ -12,6 +12,7 @@ interface UseNotificationsReturn {
   subscribe: () => Promise<boolean>;
   unsubscribe: () => Promise<boolean>;
   sendTestNotification: () => Promise<void>;
+  refreshSubscriptionStatus: () => Promise<void>; // NEW
 }
 
 export const useNotifications = (): UseNotificationsReturn => {
@@ -21,13 +22,15 @@ export const useNotifications = (): UseNotificationsReturn => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // NEW: Get user store methods
   const { user, updatePushSubscription, removePushSubscription } =
     useUserStore();
 
   const VAPID_PUBLIC_KEY =
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-    "BEl62iUYgUivxIkv69yViEuiBIa40HI80NjQoQ1_-qnT7A";
+    "BPyHEfVaSEggfA0XDLyIer5y9l5rwKJUA0WrOFV4PyAb3A1zOebatkg2zd08XLzCLzgBnuEjwDy6jgsZttW-vlg";
+
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api";
 
   useEffect(() => {
     setIsSupported("serviceWorker" in navigator && "PushManager" in window);
@@ -39,7 +42,11 @@ export const useNotifications = (): UseNotificationsReturn => {
     checkSubscriptionStatus();
   }, []);
 
-  // NEW: Check both browser subscription and user store
+  // NEW: Refresh when user data changes
+  useEffect(() => {
+    checkSubscriptionStatus();
+  }, [user?.pushSubscription]);
+
   const checkSubscriptionStatus = useCallback(async () => {
     if (!isSupported) return;
 
@@ -47,15 +54,26 @@ export const useNotifications = (): UseNotificationsReturn => {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
 
-      // Check both browser subscription and user data
       const browserSubscribed = !!subscription;
       const userSubscribed = !!user?.pushSubscription;
+
+      console.log("Subscription status:", {
+        browserSubscribed,
+        userSubscribed,
+        user: !!user,
+      });
 
       setIsSubscribed(browserSubscribed && userSubscribed);
     } catch (error) {
       console.error("Error checking subscription status:", error);
+      setIsSubscribed(false);
     }
   }, [isSupported, user?.pushSubscription]);
+
+  // NEW: Public method to refresh status
+  const refreshSubscriptionStatus = useCallback(async () => {
+    await checkSubscriptionStatus();
+  }, [checkSubscriptionStatus]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
@@ -107,45 +125,53 @@ export const useNotifications = (): UseNotificationsReturn => {
 
     setIsLoading(true);
     try {
+      // NEW: Check for existing subscription first
       const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
 
-      const subscription = await registration.pushManager.subscribe({
+      // If already subscribed, unsubscribe first to avoid duplicates
+      if (subscription) {
+        console.log("Existing subscription found, unsubscribing first...");
+        await subscription.unsubscribe();
+      }
+
+      subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
 
       const subscriptionData = subscription.toJSON();
 
-      // Send subscription to backend
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api"
-        }/notifications/subscribe`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({
-            subscription: subscriptionData,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to save subscription to server");
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
       }
 
-      // NEW: Update user store
-      await updatePushSubscription(subscriptionData);
+      const response = await fetch(`${API_BASE_URL}/notifications/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          subscription: subscriptionData,
+        }),
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      await updatePushSubscription(subscriptionData);
       setIsSubscribed(true);
       toast.success("Successfully subscribed to push notifications!");
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error subscribing to push notifications:", error);
-      toast.error("Failed to subscribe to push notifications");
+      toast.error(`Failed to subscribe: ${error.message}`);
       return false;
     } finally {
       setIsLoading(false);
@@ -156,6 +182,7 @@ export const useNotifications = (): UseNotificationsReturn => {
     VAPID_PUBLIC_KEY,
     requestPermission,
     updatePushSubscription,
+    API_BASE_URL,
   ]);
 
   const unsubscribe = useCallback(async (): Promise<boolean> => {
@@ -169,37 +196,33 @@ export const useNotifications = (): UseNotificationsReturn => {
       if (subscription) {
         await subscription.unsubscribe();
 
-        await fetch(
-          `${
-            process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api"
-          }/notifications/unsubscribe`,
-          {
+        const token = localStorage.getItem("token");
+        if (token) {
+          await fetch(`${API_BASE_URL}/notifications/unsubscribe`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
               endpoint: subscription.endpoint,
             }),
-          }
-        );
+          });
+        }
       }
 
-      // NEW: Update user store
       await removePushSubscription();
-
       setIsSubscribed(false);
       toast.success("Successfully unsubscribed from push notifications");
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error unsubscribing from push notifications:", error);
       toast.error("Failed to unsubscribe from push notifications");
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported, removePushSubscription]);
+  }, [isSupported, removePushSubscription, API_BASE_URL]);
 
   const sendTestNotification = useCallback(async (): Promise<void> => {
     if (!isSubscribed) {
@@ -208,29 +231,32 @@ export const useNotifications = (): UseNotificationsReturn => {
     }
 
     try {
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api"
-        }/notifications/test`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await fetch(`${API_BASE_URL}/notifications/test`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to send test notification");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || "Failed to send test notification"
+        );
       }
 
       toast.success("Test notification sent!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending test notification:", error);
-      toast.error("Failed to send test notification");
+      toast.error(`Failed to send test notification: ${error.message}`);
     }
-  }, [isSubscribed]);
+  }, [isSubscribed, API_BASE_URL]);
 
   return {
     isSupported,
@@ -241,5 +267,6 @@ export const useNotifications = (): UseNotificationsReturn => {
     subscribe,
     unsubscribe,
     sendTestNotification,
+    refreshSubscriptionStatus,
   };
 };

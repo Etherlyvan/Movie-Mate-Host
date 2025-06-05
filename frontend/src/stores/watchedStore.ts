@@ -1,5 +1,7 @@
+// frontend/src/stores/watchedStore.ts - Add local notifications back
 import { create } from "zustand";
 import { userApi } from "@/lib/api";
+import { useNotificationStore } from "./notificationStore";
 
 interface WatchedMovie {
   movieId: number;
@@ -79,7 +81,6 @@ export const useWatchedStore = create<WatchedState>((set, get) => ({
 
       const newWatchedMovie = response.data.data.watched;
       set((state) => {
-        // Remove existing entry if any and add new one
         const filteredMovies = state.watchedMovies.filter(
           (movie) => movie.movieId !== movieId
         );
@@ -87,6 +88,38 @@ export const useWatchedStore = create<WatchedState>((set, get) => ({
           watchedMovies: [...filteredMovies, newWatchedMovie],
           isLoading: false,
         };
+      });
+
+      const ratingText = rating ? ` and rated it ${rating}/10` : "";
+      useNotificationStore.getState().addNotification({
+        type: "watched",
+        title: "🎬 Movie Watched!",
+        message: `You've watched "${movieTitle}"${ratingText}`,
+        movieId,
+        movieTitle,
+        rating,
+        url: `/movies/${movieId}`,
+      });
+
+      // Send push notification (no await to not block UI)
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/watched`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          movieData: {
+            id: movieId,
+            title: movieTitle,
+            poster_path: moviePoster
+              ? moviePoster.replace("https://image.tmdb.org/t/p/w500", "")
+              : null,
+            rating: rating,
+          },
+        }),
+      }).catch((error) => {
+        console.log("Push notification failed:", error);
       });
     } catch (error: any) {
       console.error("Add watched movie error:", error);
@@ -102,6 +135,10 @@ export const useWatchedStore = create<WatchedState>((set, get) => ({
   removeWatchedMovie: async (movieId: number) => {
     set({ isLoading: true, error: null });
     try {
+      const movieToRemove = get().watchedMovies.find(
+        (w) => w.movieId === movieId
+      );
+
       await userApi.removeWatchedMovie(movieId);
       set((state) => ({
         watchedMovies: state.watchedMovies.filter(
@@ -109,6 +146,18 @@ export const useWatchedStore = create<WatchedState>((set, get) => ({
         ),
         isLoading: false,
       }));
+
+      // Add removal notification
+      if (movieToRemove) {
+        useNotificationStore.getState().addNotification({
+          type: "watched",
+          title: "🎬 Removed from Watched",
+          message: `"${movieToRemove.movieTitle}" has been removed from your watched list`,
+          movieId,
+          movieTitle: movieToRemove.movieTitle,
+          url: `/movies/${movieId}`,
+        });
+      }
     } catch (error: any) {
       console.error("Remove watched movie error:", error);
       set({

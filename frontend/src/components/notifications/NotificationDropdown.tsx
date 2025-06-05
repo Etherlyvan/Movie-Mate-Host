@@ -2,64 +2,32 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, BellOff, Check, X, Film, Star, Clock } from "lucide-react";
-import { useNotifications } from "@/hooks/useNotifications";
+import {
+  Bell,
+  Check,
+  X,
+  Film,
+  Star,
+  Bookmark,
+  Eye,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useNotificationStore } from "@/stores/notificationStore";
 import Link from "next/link";
-
-interface Notification {
-  id: string;
-  type: "new-release" | "recommendation" | "reminder" | "system";
-  title: string;
-  message: string;
-  movieId?: number;
-  moviePoster?: string;
-  isRead: boolean;
-  createdAt: string;
-}
 
 export const NotificationDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { isSubscribed, permission } = useNotifications();
-
-  // Mock notifications for demo
-  useEffect(() => {
-    // In real app, fetch from API
-    setNotifications([
-      {
-        id: "1",
-        type: "new-release",
-        title: "New Movie Released!",
-        message: "Spider-Man: No Way Home is now available",
-        movieId: 634649,
-        moviePoster: "/poster1.jpg",
-        isRead: false,
-        createdAt: "2024-01-15T10:30:00Z",
-      },
-      {
-        id: "2",
-        type: "recommendation",
-        title: "Movie Recommendation",
-        message: 'Based on your preferences, you might like "Inception"',
-        movieId: 27205,
-        moviePoster: "/poster2.jpg",
-        isRead: false,
-        createdAt: "2024-01-14T15:20:00Z",
-      },
-      {
-        id: "3",
-        type: "reminder",
-        title: "Watchlist Reminder",
-        message: "You have 5 movies in your watchlist waiting to be watched",
-        isRead: true,
-        createdAt: "2024-01-13T09:15:00Z",
-      },
-    ]);
-  }, []);
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    removeNotification,
+    clearAll,
+  } = useNotificationStore();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -76,38 +44,33 @@ export const NotificationDropdown: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) =>
-      prev.map((notification) => ({ ...notification, isRead: true }))
-    );
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  const getNotificationIcon = (type: Notification["type"]) => {
+  const getNotificationIcon = (type: string) => {
     switch (type) {
-      case "new-release":
-        return <Film className="h-4 w-4 text-blue-400" />;
-      case "recommendation":
-        return <Star className="h-4 w-4 text-yellow-400" />;
-      case "reminder":
-        return <Clock className="h-4 w-4 text-green-400" />;
-      default:
+      case "bookmark":
+        return <Bookmark className="h-4 w-4 text-yellow-400" />;
+      case "watched":
+        return <Eye className="h-4 w-4 text-green-400" />;
+      case "rating":
+        return <Star className="h-4 w-4 text-blue-400" />;
+      case "system":
         return <Bell className="h-4 w-4 text-gray-400" />;
+      default:
+        return <Film className="h-4 w-4 text-blue-400" />;
+    }
+  };
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case "bookmark":
+        return "border-yellow-500";
+      case "watched":
+        return "border-green-500";
+      case "rating":
+        return "border-blue-500";
+      case "system":
+        return "border-gray-500";
+      default:
+        return "border-blue-500";
     }
   };
 
@@ -115,11 +78,13 @@ export const NotificationDropdown: React.FC = () => {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
     if (days > 0) return `${days}d ago`;
     if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
     return "Just now";
   };
 
@@ -131,11 +96,7 @@ export const NotificationDropdown: React.FC = () => {
         title="Notifications"
         aria-label="Notifications"
       >
-        {isSubscribed && permission === "granted" ? (
-          <Bell className="h-5 w-5" />
-        ) : (
-          <BellOff className="h-5 w-5" />
-        )}
+        <Bell className="h-5 w-5" />
 
         {unreadCount > 0 && (
           <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-600 text-white text-xs rounded-full flex items-center justify-center font-medium">
@@ -161,14 +122,9 @@ export const NotificationDropdown: React.FC = () => {
                 </Button>
               )}
             </div>
-
-            {(!isSubscribed || permission !== "granted") && (
-              <div className="mt-2 p-2 bg-yellow-600/20 border border-yellow-600/30 rounded text-xs text-yellow-400">
-                <Link href="/settings" className="hover:underline">
-                  Enable push notifications in settings
-                </Link>
-              </div>
-            )}
+            <p className="text-xs text-gray-400 mt-1">
+              Your movie activity updates
+            </p>
           </div>
 
           {/* Notifications List */}
@@ -177,6 +133,9 @@ export const NotificationDropdown: React.FC = () => {
               <div className="p-6 text-center text-gray-400">
                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>No notifications yet</p>
+                <p className="text-xs mt-1">
+                  Bookmark or watch movies to get notifications!
+                </p>
               </div>
             ) : (
               <div className="py-2">
@@ -186,7 +145,8 @@ export const NotificationDropdown: React.FC = () => {
                     className={`relative px-4 py-3 hover:bg-gray-800/50 transition-colors border-l-2 ${
                       notification.isRead
                         ? "border-transparent"
-                        : "border-blue-500 bg-blue-500/5"
+                        : getNotificationColor(notification.type) +
+                          " bg-gray-800/20"
                     }`}
                   >
                     <div className="flex items-start space-x-3">
@@ -217,7 +177,27 @@ export const NotificationDropdown: React.FC = () => {
                             >
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+
+                            {/* Movie Info */}
+                            {notification.movieTitle && (
+
+                                <div className="flex-1">
+                                  <p className="text-white font-medium">
+                                    {notification.movieTitle}
+                                  </p>
+                                  {notification.rating && (
+                                    <div className="flex items-center mt-1">
+                                      <Star className="h-3 w-3 text-yellow-400 mr-1" />
+                                      <span className="text-yellow-400">
+                                        {notification.rating}/10
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              
+                            )}
+
+                            <p className="text-xs text-gray-500 mt-2">
                               {formatTime(notification.createdAt)}
                             </p>
                           </div>
@@ -268,14 +248,20 @@ export const NotificationDropdown: React.FC = () => {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="p-3 border-t border-gray-800">
-              <Link
-                href="/notifications"
-                onClick={() => setIsOpen(false)}
-                className="block text-center text-sm text-blue-400 hover:text-blue-300 hover:underline"
+            <div className="p-3 border-t border-gray-800 space-y-2">
+              <button
+                onClick={() => {
+                  clearAll();
+                  setIsOpen(false);
+                }}
+                className="block w-full text-center text-sm text-gray-400 hover:text-gray-300 hover:underline"
               >
-                View all notifications
-              </Link>
+                Clear all notifications
+              </button>
+
+              <div className="text-xs text-gray-500 text-center">
+                Push notifications are also sent to your device
+              </div>
             </div>
           )}
         </div>

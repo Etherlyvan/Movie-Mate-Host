@@ -1,6 +1,7 @@
-// frontend/src/stores/bookmarkStore.ts
+// frontend/src/stores/bookmarkStore.ts - Add local notifications back
 import { create } from "zustand";
 import { userApi } from "@/lib/api";
+import { useNotificationStore } from "./notificationStore";
 
 interface Bookmark {
   movieId: number;
@@ -45,7 +46,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       set({
         error: error.response?.data?.message || "Failed to fetch bookmarks",
         isLoading: false,
-        bookmarks: [], // Reset on error
+        bookmarks: [],
       });
     }
   },
@@ -71,6 +72,36 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
         bookmarks: [...state.bookmarks, newBookmark],
         isLoading: false,
       }));
+
+      // Add local notification for dropdown
+      useNotificationStore.getState().addNotification({
+        type: "bookmark",
+        title: "📚 Movie Bookmarked!",
+        message: `"${movieTitle}" has been added to your watchlist`,
+        movieId,
+        movieTitle,
+        url: `/movies/${movieId}`,
+      });
+
+      // Send push notification (no await to not block UI)
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/bookmark`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          movieData: {
+            id: movieId,
+            title: movieTitle,
+            poster_path: moviePoster
+              ? moviePoster.replace("https://image.tmdb.org/t/p/w500", "")
+              : null,
+          },
+        }),
+      }).catch((error) => {
+        console.log("Push notification failed:", error);
+      });
     } catch (error: any) {
       console.error("Add bookmark error:", error);
       set({
@@ -84,6 +115,8 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   removeBookmark: async (movieId: number) => {
     set({ isLoading: true, error: null });
     try {
+      const movieToRemove = get().bookmarks.find((b) => b.movieId === movieId);
+
       await userApi.removeBookmark(movieId);
       set((state) => ({
         bookmarks: state.bookmarks.filter(
@@ -91,6 +124,18 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
         ),
         isLoading: false,
       }));
+
+      // Add removal notification
+      if (movieToRemove) {
+        useNotificationStore.getState().addNotification({
+          type: "bookmark",
+          title: "📚 Bookmark Removed",
+          message: `"${movieToRemove.movieTitle}" has been removed from your watchlist`,
+          movieId,
+          movieTitle: movieToRemove.movieTitle,
+          url: `/movies/${movieId}`,
+        });
+      }
     } catch (error: any) {
       console.error("Remove bookmark error:", error);
       set({
@@ -112,7 +157,6 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       return response.data.data.isBookmarked;
     } catch (error: any) {
       console.error("Check bookmark status error:", error);
-      // Fallback to local state
       return get().isBookmarked(movieId);
     }
   },

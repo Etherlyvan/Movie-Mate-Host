@@ -6,17 +6,13 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUserStore } from "@/stores/userStore";
 import { Button } from "@/components/ui/Button";
 import { NotificationSettings } from "@/components/notifications/NotificationSettings";
-import { ToggleField } from "@/components/ui/ToggleField";
 
 import {
   User as UserIcon,
   Bell,
-  Shield,
   Lock,
   Save,
   AlertTriangle,
-  Mail,
-  Eye,
   LogOut,
   Trash2,
   Camera,
@@ -25,7 +21,7 @@ import {
 import { UserPreferences, UserProfile } from "@/types";
 import { toast } from "react-hot-toast";
 
-type SettingsSection = "profile" | "notifications" | "privacy" | "account";
+type SettingsSection = "profile" | "notifications" | "account"; // REMOVED: "privacy"
 
 interface SettingsFormData {
   profile: Partial<UserProfile>;
@@ -71,11 +67,7 @@ const SettingsPage: React.FC = () => {
             recommendations:
               user.preferences?.notifications?.recommendations ?? true,
           },
-          privacy: {
-            showProfile: user.preferences?.privacy?.showProfile ?? true,
-            showWatchlist: user.preferences?.privacy?.showWatchlist ?? true,
-            showActivity: user.preferences?.privacy?.showActivity ?? true,
-          },
+          // REMOVED: privacy settings
         },
       });
       setIsInitialized(true);
@@ -147,18 +139,15 @@ const SettingsPage: React.FC = () => {
 
           await updateProfile(cleanProfileData);
           toast.success("Profile updated successfully");
-        } else if (section === "notifications" || section === "privacy") {
+        } else if (section === "notifications") {
           const cleanPreferencesData: any = {};
           if (formData.preferences.notifications) {
             cleanPreferencesData.notifications =
               formData.preferences.notifications;
           }
-          if (formData.preferences.privacy) {
-            cleanPreferencesData.privacy = formData.preferences.privacy;
-          }
 
           await updatePreferences(cleanPreferencesData);
-          toast.success("Settings updated successfully");
+          toast.success("Notification settings updated successfully");
         }
 
         setHasUnsavedChanges(false);
@@ -198,10 +187,10 @@ const SettingsPage: React.FC = () => {
     [updateAvatar]
   );
 
+  // UPDATED: Removed privacy section
   const settingsSections = [
     { id: "profile", label: "Profile", icon: UserIcon },
     { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "privacy", label: "Privacy", icon: Shield },
     { id: "account", label: "Account", icon: Lock },
   ] as const;
 
@@ -221,7 +210,7 @@ const SettingsPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-white">Settings</h1>
             <p className="text-gray-400 mt-1">
-              Manage your account preferences and privacy settings
+              Manage your account and notification preferences
             </p>
           </div>
 
@@ -285,14 +274,7 @@ const SettingsPage: React.FC = () => {
                 />
               )}
 
-              {activeSection === "privacy" && (
-                <PrivacySettings
-                  formData={formData.preferences}
-                  onNestedUpdate={updateNestedFormData}
-                  onSave={() => saveSettings("privacy")}
-                  isSaving={isSaving}
-                />
-              )}
+              {/* REMOVED: Privacy Settings */}
 
               {activeSection === "account" && (
                 <AccountSettings user={user} onLogout={logout} />
@@ -305,7 +287,7 @@ const SettingsPage: React.FC = () => {
   );
 };
 
-// Profile Settings Component
+// Profile Settings Component (Same as before)
 const ProfileSettings: React.FC<{
   formData: Partial<UserProfile>;
   user: any;
@@ -332,7 +314,7 @@ const ProfileSettings: React.FC<{
         <div>
           <h2 className="text-xl font-bold text-white">Profile Information</h2>
           <p className="text-gray-400 text-sm mt-1">
-            Update your personal information
+            Update your personal information and movie preferences
           </p>
         </div>
 
@@ -436,7 +418,7 @@ const ProfileSettings: React.FC<{
               label="Bio"
               value={formData.bio || ""}
               onChange={(value) => onUpdate("profile", "bio", value)}
-              placeholder="Tell us about yourself..."
+              placeholder="Tell us about yourself and your movie preferences..."
               multiline
               rows={4}
             />
@@ -455,88 +437,11 @@ const ProfileSettings: React.FC<{
   );
 };
 
-// Privacy Settings Component
-const PrivacySettings: React.FC<{
-  formData: Partial<UserPreferences>;
-  onNestedUpdate: (
-    section: "preferences",
-    parentField: string,
-    field: string,
-    value: any
-  ) => void;
-  onSave: () => void;
-  isSaving: boolean;
-}> = ({ formData, onNestedUpdate, onSave, isSaving }) => (
-  <div className="p-6">
-    <div className="flex items-center justify-between mb-6">
-      <div>
-        <h2 className="text-xl font-bold text-white">Privacy Settings</h2>
-        <p className="text-gray-400 text-sm mt-1">
-          Control what information is visible to others
-        </p>
-      </div>
-
-      <Button
-        variant="primary"
-        size="md"
-        icon={Save}
-        onClick={onSave}
-        loading={isSaving}
-        disabled={isSaving}
-      >
-        {isSaving ? "Saving..." : "Save Changes"}
-      </Button>
-    </div>
-
-    <div className="space-y-8">
-      <SettingsSection
-        title="Profile Visibility"
-        description="Control what others can see about your profile"
-        icon={<Eye className="h-5 w-5" />}
-      >
-        <div className="space-y-4">
-          <ToggleField
-            label="Show Profile"
-            description="Make your profile visible to other users"
-            checked={formData.privacy?.showProfile ?? true}
-            onChange={(checked) =>
-              onNestedUpdate("preferences", "privacy", "showProfile", checked)
-            }
-            compact={true}
-          />
-
-          <ToggleField
-            label="Show Watchlist"
-            description="Allow others to see your watchlist"
-            checked={formData.privacy?.showWatchlist ?? true}
-            onChange={(checked) =>
-              onNestedUpdate("preferences", "privacy", "showWatchlist", checked)
-            }
-            compact={true}
-          />
-
-          <ToggleField
-            label="Show Activity"
-            description="Display your recent activity to others"
-            checked={formData.privacy?.showActivity ?? true}
-            onChange={(checked) =>
-              onNestedUpdate("preferences", "privacy", "showActivity", checked)
-            }
-            compact={true}
-          />
-        </div>
-      </SettingsSection>
-    </div>
-  </div>
-);
-
-// Account Settings Component
+// Account Settings Component - Enhanced
 const AccountSettings: React.FC<{
   user: any;
   onLogout: () => void;
 }> = ({ user, onLogout }) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
   const handleLogout = () => {
     const confirmed = window.confirm("Are you sure you want to log out?");
     if (confirmed) {
@@ -547,9 +452,9 @@ const AccountSettings: React.FC<{
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-white">Account</h2>
+        <h2 className="text-xl font-bold text-white">Account Management</h2>
         <p className="text-gray-400 text-sm mt-1">
-          Manage your account settings
+          Manage your account settings and security
         </p>
       </div>
 
@@ -559,27 +464,61 @@ const AccountSettings: React.FC<{
           description="View your account details"
           icon={<UserIcon className="h-5 w-5" />}
         >
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Username</span>
-              <span className="text-white">{user?.username}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Email</span>
-              <span className="text-white">{user?.email}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Member since</span>
-              <span className="text-white">
-                {new Date(user?.createdAt).toLocaleDateString()}
-              </span>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <div className="text-sm text-gray-400">Username</div>
+                <div className="text-white font-medium">{user?.username}</div>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <div className="text-sm text-gray-400">Email</div>
+                <div className="text-white font-medium">{user?.email}</div>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <div className="text-sm text-gray-400">Member since</div>
+                <div className="text-white font-medium">
+                  {new Date(user?.createdAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </div>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <div className="text-sm text-gray-400">Last login</div>
+                <div className="text-white font-medium">
+                  {user?.lastLogin
+                    ? new Date(user.lastLogin).toLocaleDateString()
+                    : "Not available"}
+                </div>
+              </div>
             </div>
           </div>
         </SettingsSection>
 
         <SettingsSection
+          title="Security"
+          description="Manage your account security"
+          icon={<Lock className="h-5 w-5" />}
+        >
+          <div className="space-y-4">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => toast("Password change feature coming soon")}
+              className="w-full sm:w-auto"
+            >
+              Change Password
+            </Button>
+            <p className="text-sm text-gray-400">
+              Update your password to keep your account secure
+            </p>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection
           title="Sign Out"
-          description="Sign out of your account"
+          description="Sign out of your account on this device"
           icon={<LogOut className="h-5 w-5" />}
         >
           <Button
@@ -593,25 +532,33 @@ const AccountSettings: React.FC<{
         </SettingsSection>
 
         <SettingsSection
-          title="Delete Account"
-          description="Permanently delete your account and all data"
+          title="Danger Zone"
+          description="Irreversible and destructive actions"
           icon={<Trash2 className="h-5 w-5 text-red-500" />}
         >
-          <Button
-            variant="danger"
-            size="md"
-            icon={Trash2}
-            onClick={() => toast.error("Account deletion feature coming soon")}
-          >
-            Delete Account
-          </Button>
+          <div className="space-y-4">
+            <Button
+              variant="danger"
+              size="md"
+              icon={Trash2}
+              onClick={() =>
+                toast.error("Account deletion feature coming soon")
+              }
+            >
+              Delete Account
+            </Button>
+            <p className="text-sm text-gray-400">
+              This will permanently delete your account and all associated data.
+              This action cannot be undone.
+            </p>
+          </div>
         </SettingsSection>
       </div>
     </div>
   );
 };
 
-// Utility Components
+// Utility Components (Same as before)
 const FormField: React.FC<{
   label: string;
   value: string;
@@ -708,6 +655,9 @@ const GenreSelector: React.FC<{
           {selectedGenres.length}/5 selected
         </span>
       </div>
+      <p className="text-sm text-gray-400 mb-4">
+        Select your favorite movie genres to get better recommendations
+      </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {availableGenres.map((genre) => {
@@ -744,7 +694,7 @@ const SettingsSkeleton: React.FC = () => (
         <div className="h-4 bg-gray-700 rounded mb-8 w-1/3"></div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-12 bg-gray-700 rounded-lg"></div>
             ))}
           </div>

@@ -170,47 +170,34 @@ export const useUserStore = create<UserState>()(
       },
 
       // NEW: Push notification methods
-      updatePushSubscription: async (subscription: any) => {
-        const currentUser = get().user;
-        if (currentUser) {
-          // Update local state immediately for better UX
+      updatePushSubscription: async (subscription) => {
+        const { user } = get();
+        if (user) {
           set({
             user: {
-              ...currentUser,
+              ...user,
               pushSubscription: subscription,
               preferences: {
-                ...currentUser.preferences,
+                ...user.preferences,
                 notifications: {
-                  ...currentUser.preferences?.notifications,
+                  ...user.preferences?.notifications,
                   push: true,
                 },
               },
             },
-            lastFetched: Date.now(),
           });
         }
       },
 
       removePushSubscription: async () => {
-        const currentUser = get().user;
-        if (currentUser) {
-          // Update local state immediately for better UX
-          const updatedUser = { ...currentUser };
+        const { user } = get();
+        if (user) {
+          const updatedUser = { ...user };
           delete updatedUser.pushSubscription;
-
-          set({
-            user: {
-              ...updatedUser,
-              preferences: {
-                ...currentUser.preferences,
-                notifications: {
-                  ...currentUser.preferences?.notifications,
-                  push: false,
-                },
-              },
-            },
-            lastFetched: Date.now(),
-          });
+          if (updatedUser.preferences?.notifications) {
+            updatedUser.preferences.notifications.push = false;
+          }
+          set({ user: updatedUser });
         }
       },
 

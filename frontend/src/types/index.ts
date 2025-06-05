@@ -194,12 +194,7 @@ export interface UserPreferences {
     push: boolean;
     newReleases: boolean;
     recommendations: boolean;
-    bookmarkReminders?: boolean; // NEW
-  };
-  privacy: {
-    showProfile: boolean;
-    showWatchlist: boolean;
-    showActivity: boolean;
+    bookmarkReminders?: boolean;
   };
   display: {
     moviesPerPage: number;
@@ -245,3 +240,92 @@ export interface Activity {
   date: string;
   review?: string;
 }
+
+export interface MovieDetails extends Movie {
+  genres: Genre[];
+  runtime: number;
+  budget: number;
+  revenue: number;
+  status: string;
+  tagline: string;
+  homepage: string;
+  imdb_id: string;
+  production_companies: ProductionCompany[];
+  production_countries: ProductionCountry[];
+  spoken_languages: SpokenLanguage[];
+}
+
+export interface Genre {
+  id: number;
+  name: string;
+}
+
+export interface ProductionCompany {
+  id: number;
+  logo_path: string | null;
+  name: string;
+  origin_country: string;
+}
+
+export interface ProductionCountry {
+  iso_3166_1: string;
+  name: string;
+}
+
+export interface SpokenLanguage {
+  english_name: string;
+  iso_639_1: string;
+  name: string;
+}
+
+// API Response types
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+export interface PaginatedResponse<T> {
+  results: T[];
+  page: number;
+  total_pages: number;
+  total_results: number;
+}
+
+// Tambahkan rating helpers
+export type RatingScale = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+
+export interface RatingInfo {
+  rating: number;
+  label: string;
+  color: string;
+}
+
+export const getRatingInfo = (rating: number): RatingInfo => {
+  const getRatingLabel = (rating: number) => {
+    if (rating === 0) return "Not Rated";
+    if (rating <= 2) return "Terrible";
+    if (rating <= 4) return "Bad";
+    if (rating <= 5) return "Poor";
+    if (rating <= 6) return "Okay";
+    if (rating <= 7) return "Good";
+    if (rating <= 8) return "Great";
+    if (rating <= 9) return "Excellent";
+    return "Masterpiece";
+  };
+
+  const getRatingColor = (rating: number) => {
+    if (rating === 0) return "gray";
+    if (rating <= 3) return "red";
+    if (rating <= 5) return "orange";
+    if (rating <= 7) return "yellow";
+    if (rating <= 8) return "green";
+    return "emerald";
+  };
+
+  return {
+    rating,
+    label: getRatingLabel(rating),
+    color: getRatingColor(rating),
+  };
+};

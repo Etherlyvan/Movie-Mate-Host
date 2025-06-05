@@ -4,11 +4,14 @@
 import { useEffect } from "react";
 import { registerServiceWorker } from "@/lib/serviceWorker";
 
-export function ServiceWorkerProvider() {
+export const ServiceWorkerProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   useEffect(() => {
-    // Register service worker
-    registerServiceWorker();
+    if (typeof window !== "undefined") {
+      registerServiceWorker();
+    }
   }, []);
 
-  return null; // This component doesn't render anything
-}
+  return <>{children}</>;
+};

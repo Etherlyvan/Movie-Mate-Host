@@ -8,6 +8,7 @@ import { useBookmarkStore } from "@/stores/bookmarkStore";
 import { useWatchedStore } from "@/stores/watchedStore";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "react-hot-toast";
+import RatingModal from "@/components/ui/RatingModal";
 import {
   getImageUrl,
   formatRating,
@@ -34,6 +35,7 @@ export default function MovieDetailPage() {
   const movieId = params.id as string;
 
   const [movie, setMovie] = useState<MovieDetails | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookmarked, setBookmarked] = useState(false);
@@ -123,21 +125,45 @@ export default function MovieDetailPage() {
 
     if (!movie) return;
 
-    setWatchedLoading(true);
-    try {
-      if (watched) {
+    if (watched) {
+      setWatchedLoading(true);
+      try {
         await removeWatchedMovie(movie.id);
         setWatched(false);
         toast.success("Removed from watched list");
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Something went wrong");
+      } finally {
+        setWatchedLoading(false);
+      }
+    } else {
+      // Show rating modal instead of directly adding
+      setShowRatingModal(true);
+    }
+  };
+
+  const handleRatingSubmit = async (rating: number, review?: string) => {
+    if (!movie) return;
+
+    try {
+      await addWatchedMovie(
+        movie.id,
+        movie.title,
+        movie.poster_path || "",
+        rating,
+        review
+      );
+      setWatched(true);
+      setShowRatingModal(false);
+
+      if (rating > 0) {
+        toast.success(`Marked as watched with ${rating}/10 rating!`);
       } else {
-        await addWatchedMovie(movie.id, movie.title, movie.poster_path || "");
-        setWatched(true);
-        toast.success("Marked as watched");
+        toast.success("Marked as watched!");
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Something went wrong");
-    } finally {
-      setWatchedLoading(false);
+      throw error;
     }
   };
 
@@ -376,7 +402,14 @@ export default function MovieDetailPage() {
                       </button>
                     </>
                   )}
-
+                  <RatingModal
+                    isOpen={showRatingModal}
+                    onClose={() => setShowRatingModal(false)}
+                    onSubmit={handleRatingSubmit}
+                    movieTitle={movie.title}
+                    moviePoster={movie.poster_path || ""}
+                    isLoading={watchedLoading}
+                  />
                   <button
                     onClick={handleShare}
                     className="flex items-center px-4 py-3 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 rounded-lg font-medium transition-colors text-white"

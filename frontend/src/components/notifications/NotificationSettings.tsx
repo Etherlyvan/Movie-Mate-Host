@@ -1,8 +1,8 @@
 // frontend/src/components/notifications/NotificationSettings.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { Button } from "@/components/ui/Button";
-import { ToggleField } from '@/components/ui/ToggleField';
+import { ToggleField } from "@/components/ui/ToggleField";
 import {
   Bell,
   BellOff,
@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { UserPreferences } from "@/types";
 
-// FIXED: Update interface untuk match dengan settings page
 interface NotificationSettingsProps {
   formData: Partial<UserPreferences>;
   onNestedUpdate: (
@@ -40,18 +39,46 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
     subscribe,
     unsubscribe,
     sendTestNotification,
+    refreshSubscriptionStatus, // NEW
   } = useNotifications();
+
+  // NEW: Refresh subscription status when component mounts and after save
+  useEffect(() => {
+    refreshSubscriptionStatus();
+  }, [refreshSubscriptionStatus]);
+
+  // NEW: Sync form data with actual subscription status
+  useEffect(() => {
+    if (formData.notifications?.push !== isSubscribed) {
+      onNestedUpdate("preferences", "notifications", "push", isSubscribed);
+    }
+  }, [isSubscribed, formData.notifications?.push, onNestedUpdate]);
 
   const handlePushToggle = async () => {
     if (isSubscribed) {
-      await unsubscribe();
-      onNestedUpdate("preferences", "notifications", "push", false);
+      const success = await unsubscribe();
+      if (success) {
+        onNestedUpdate("preferences", "notifications", "push", false);
+      }
     } else {
       const success = await subscribe();
       if (success) {
         onNestedUpdate("preferences", "notifications", "push", true);
       }
     }
+    // Refresh status after toggle
+    setTimeout(() => {
+      refreshSubscriptionStatus();
+    }, 1000);
+  };
+
+  // NEW: Custom save handler that preserves subscription state
+  const handleSave = async () => {
+    await onSave();
+    // Refresh subscription status after save
+    setTimeout(() => {
+      refreshSubscriptionStatus();
+    }, 1000);
   };
 
   const getPermissionStatus = () => {
@@ -101,7 +128,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
           variant="primary"
           size="md"
           icon={Bell}
-          onClick={onSave}
+          onClick={handleSave} // NEW: Use custom save handler
           loading={isSaving}
           disabled={isSaving}
         >
@@ -155,6 +182,10 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
               <p className="text-gray-400 text-sm mt-1">
                 Receive push notifications for movie updates
               </p>
+              {/* NEW: Show current status */}
+              <p className="text-xs text-gray-500 mt-1">
+                Status: {isSubscribed ? "Subscribed" : "Not subscribed"}
+              </p>
             </div>
 
             <Button
@@ -204,20 +235,6 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
 
             <div className="space-y-3">
               <ToggleField
-                label="Email Notifications"
-                description="Receive general email notifications"
-                checked={formData.notifications?.email ?? true}
-                onChange={(checked) =>
-                  onNestedUpdate(
-                    "preferences",
-                    "notifications",
-                    "email",
-                    checked
-                  )
-                }
-              />
-
-              <ToggleField
                 label="New Movie Releases"
                 description="Get notified when new movies are released"
                 checked={formData.notifications?.newReleases ?? true}
@@ -240,20 +257,6 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
                     "preferences",
                     "notifications",
                     "recommendations",
-                    checked
-                  )
-                }
-              />
-
-              <ToggleField
-                label="Bookmark Reminders"
-                description="Get reminded about movies in your watchlist"
-                checked={formData.notifications?.bookmarkReminders ?? false}
-                onChange={(checked) =>
-                  onNestedUpdate(
-                    "preferences",
-                    "notifications",
-                    "bookmarkReminders",
                     checked
                   )
                 }

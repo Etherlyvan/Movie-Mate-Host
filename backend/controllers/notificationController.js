@@ -1,19 +1,124 @@
-// backend/controllers/notificationController.js
+// backend/controllers/notificationController.js - Enhanced debugging
 const webpush = require("web-push");
 const User = require("../models/User");
 
 // Configure web-push with VAPID keys
 webpush.setVapidDetails(
-  "mailto:your-email@example.com", // Replace with your email
-  process.env.VAPID_PUBLIC_KEY || "BPyHEfVaSEggfA0XDLyIer5y9l5rwKJUA0WrOFV4PyAb3A1zOebatkg2zd08XLzCLzgBnuEjwDy6jgsZttW-vlg",
+  "mailto:your-email@example.com",
+  process.env.VAPID_PUBLIC_KEY ||
+    "BPyHEfVaSEggfA0XDLyIer5y9l5rwKJUA0WrOFV4PyAb3A1zOebatkg2zd08XLzCLzgBnuEjwDy6jgsZttW-vlg",
   process.env.VAPID_PRIVATE_KEY || "KG5E3plMtjWClFcbd-4m6BouRdpQGjsGEG23BnSoAfQ"
 );
 
-// Subscribe to push notifications
+// Enhanced test notification
+const sendTestNotification = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    console.log("🧪 Sending test notification to user:", userId);
+    console.log("👤 User push subscription:", !!user?.pushSubscription);
+
+    if (!user || !user.pushSubscription) {
+      return res.status(400).json({
+        success: false,
+        message: "User not subscribed to push notifications",
+      });
+    }
+
+    const payload = JSON.stringify({
+      title: "🎬 Test Notification",
+      body: "This is a test notification from Movie Tracker!",
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+      type: "test",
+      tag: "test-notification",
+      url: "/dashboard",
+      timestamp: Date.now(),
+    });
+
+    console.log("📦 Sending payload:", payload);
+    console.log("🔑 Using subscription:", user.pushSubscription);
+
+    const result = await webpush.sendNotification(
+      user.pushSubscription,
+      payload
+    );
+    console.log("✅ Notification sent successfully:", result);
+
+    res.json({
+      success: true,
+      message: "Test notification sent successfully",
+      debug: {
+        hasSubscription: !!user.pushSubscription,
+        payload: JSON.parse(payload),
+      },
+    });
+  } catch (error) {
+    console.error("❌ Send test notification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send test notification",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+// Enhanced bookmark notification
+const sendBookmarkNotification = async (userId, movieData) => {
+  try {
+    const user = await User.findById(userId);
+
+    if (
+      !user ||
+      !user.pushSubscription ||
+      !user.preferences?.notifications?.push
+    ) {
+      console.log("❌ User not eligible for push notifications:", {
+        hasUser: !!user,
+        hasSubscription: !!user?.pushSubscription,
+        pushEnabled: user?.preferences?.notifications?.push,
+      });
+      return false;
+    }
+
+    const notificationData = {
+      title: "🔖 Movie Bookmarked!",
+      body: `You've added "${movieData.title}" to your watchlist!`,
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+      image: movieData.poster_path
+        ? `https://image.tmdb.org/t/p/w500${movieData.poster_path}`
+        : null,
+      type: "bookmark",
+      tag: `bookmark-${movieData.id}`,
+      movieId: movieData.id,
+      url: `/movies/${movieData.id}`,
+      timestamp: Date.now(),
+    };
+
+    console.log("📚 Sending bookmark notification:", notificationData);
+
+    await webpush.sendNotification(
+      user.pushSubscription,
+      JSON.stringify(notificationData)
+    );
+    console.log("✅ Bookmark notification sent successfully");
+    return true;
+  } catch (error) {
+    console.error("❌ Send bookmark notification error:", error);
+    return false;
+  }
+};
+
+// Rest of the functions remain the same...
 const subscribe = async (req, res) => {
   try {
     const { subscription } = req.body;
     const userId = req.user.id;
+
+    console.log("📝 Subscribing user:", userId);
+    console.log("🔔 Subscription data:", subscription);
 
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({
@@ -22,7 +127,6 @@ const subscribe = async (req, res) => {
       });
     }
 
-    // Save subscription to user
     await User.findByIdAndUpdate(userId, {
       $set: {
         pushSubscription: subscription,
@@ -30,12 +134,14 @@ const subscribe = async (req, res) => {
       },
     });
 
+    console.log("✅ User subscription saved successfully");
+
     res.json({
       success: true,
       message: "Successfully subscribed to push notifications",
     });
   } catch (error) {
-    console.error("Subscribe error:", error);
+    console.error("❌ Subscribe error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to subscribe to push notifications",
@@ -44,7 +150,6 @@ const subscribe = async (req, res) => {
   }
 };
 
-// Unsubscribe from push notifications
 const unsubscribe = async (req, res) => {
   try {
     const { endpoint } = req.body;
@@ -60,7 +165,7 @@ const unsubscribe = async (req, res) => {
       message: "Successfully unsubscribed from push notifications",
     });
   } catch (error) {
-    console.error("Unsubscribe error:", error);
+    console.error("❌ Unsubscribe error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to unsubscribe from push notifications",
@@ -69,46 +174,6 @@ const unsubscribe = async (req, res) => {
   }
 };
 
-// Send test notification
-const sendTestNotification = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const user = await User.findById(userId);
-
-    if (!user || !user.pushSubscription) {
-      return res.status(400).json({
-        success: false,
-        message: "User not subscribed to push notifications",
-      });
-    }
-
-    const payload = JSON.stringify({
-      title: "🎬 Test Notification",
-      body: "This is a test notification from Movie Tracker!",
-      icon: "/icons/icon-192x192.png",
-      badge: "/icons/badge-72x72.png",
-      type: "test",
-      tag: "test-notification",
-      url: "/dashboard",
-    });
-
-    await webpush.sendNotification(user.pushSubscription, payload);
-
-    res.json({
-      success: true,
-      message: "Test notification sent successfully",
-    });
-  } catch (error) {
-    console.error("Send test notification error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to send test notification",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-// Send notification to specific user
 const sendNotificationToUser = async (userId, notificationData) => {
   try {
     const user = await User.findById(userId);
@@ -125,12 +190,11 @@ const sendNotificationToUser = async (userId, notificationData) => {
     await webpush.sendNotification(user.pushSubscription, payload);
     return true;
   } catch (error) {
-    console.error("Send notification to user error:", error);
+    console.error("❌ Send notification to user error:", error);
     return false;
   }
 };
 
-// Send notification to multiple users
 const sendBulkNotification = async (req, res) => {
   try {
     const { userIds, notification } = req.body;
@@ -161,12 +225,64 @@ const sendBulkNotification = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Send bulk notification error:", error);
+    console.error("❌ Send bulk notification error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to send bulk notifications",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
+  }
+};
+
+const sendWatchedNotification = async (userId, movieData) => {
+  try {
+    const user = await User.findById(userId);
+
+    if (
+      !user ||
+      !user.pushSubscription ||
+      !user.preferences?.notifications?.push
+    ) {
+      console.log("❌ User not eligible for push notifications:", {
+        hasUser: !!user,
+        hasSubscription: !!user?.pushSubscription,
+        pushEnabled: user?.preferences?.notifications?.push,
+      });
+      return false;
+    }
+
+    // Enhanced message with rating
+    const ratingText = movieData.rating
+      ? ` and rated it ${movieData.rating}/10`
+      : "";
+
+    const notificationData = {
+      title: "✅ Movie Watched!",
+      body: `You've watched "${movieData.title}"${ratingText}!`,
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+      image: movieData.poster_path
+        ? `https://image.tmdb.org/t/p/w500${movieData.poster_path}`
+        : null,
+      type: "watched",
+      tag: `watched-${movieData.id}`,
+      movieId: movieData.id,
+      url: `/movies/${movieData.id}`,
+      timestamp: Date.now(),
+      rating: movieData.rating, // Include rating in notification data
+    };
+
+    console.log("🎬 Sending watched notification:", notificationData);
+
+    await webpush.sendNotification(
+      user.pushSubscription,
+      JSON.stringify(notificationData)
+    );
+    console.log("✅ Watched notification sent successfully");
+    return true;
+  } catch (error) {
+    console.error("❌ Send watched notification error:", error);
+    return false;
   }
 };
 
@@ -176,4 +292,6 @@ module.exports = {
   sendTestNotification,
   sendNotificationToUser,
   sendBulkNotification,
+  sendBookmarkNotification,
+  sendWatchedNotification,
 };
