@@ -1,8 +1,7 @@
 // frontend/src/lib/api.ts
 import axios from "axios";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api";
 
 // Create axios instance
 export const api = axios.create({
@@ -209,4 +208,26 @@ export type {
   ProfileData,
   BookmarkData,
   WatchedMovieData,
+};
+
+// Add AI API configuration
+const AI_API_BASE_URL = process.env.NEXT_PUBLIC_AI_API_URL || "http://localhost:8000";
+
+// Add AI API functions
+export const aiApi = {
+  // Get movie recommendations
+  getRecommendations: (data: {
+    genres: string[];
+    favorites: string[];
+    top_n?: number;
+  }) => 
+    axios.post(`${AI_API_BASE_URL}/recommend`, data),
+
+  // Check AI API health
+  getHealth: () => 
+    axios.get(`${AI_API_BASE_URL}/health`),
+
+  // Get model info
+  getModelInfo: () => 
+    axios.get(`${AI_API_BASE_URL}/model-info`),
 };

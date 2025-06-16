@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGODB_URI=mongodb+srv://moviemate:dzZ3KTPHIn0TdJu2@movie-mate.fe5xhdd.mongodb.net/?retryWrites=true&w=majority&appName=movie-mate
+      - JWT_SECRET=your_super_secret_jwt_key_here
+      - JWT_EXPIRE=7d
+      - TMDB_API_KEY=787d40502474165790b561a9747dccd9
+      - TMDB_BASE_URL=https://api.themoviedb.org/3
+      - TMDB_IMAGE_BASE_URL=https://image.tmdb.org/t/p/w500
+      - FRONTEND_URL=http://frontend:3000
+      - VAPID_PUBLIC_KEY=BPyHEfVaSEggfA0XDLyIer5y9l5rwKJUA0WrOFV4PyAb3A1zOebatkg2zd08XLzCLzgBnuEjwDy6jgsZttW-vlg
+      - VAPID_PRIVATE_KEY=KG5E3plMtjWClFcbd-4m6BouRdpQGjsGEG23BnSoAfQ
+      # Add AI API configuration
+      - AI_API_URL=http://ai-api:8000
+    networks:
+      - moviemate-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
+      - NEXT_PUBLIC_TMDB_IMAGE_BASE=https://image.tmdb.org/t/p/w500
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=BPyHEfVaSEggfA0XDLyIer5y9l5rwKJUA0WrOFV4PyAb3A1zOebatkg2zd08XLzCLzgBnuEjwDy6jgsZttW-vlg
+      # Add AI API configuration for frontend
+      - NEXT_PUBLIC_AI_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - moviemate-network
+    restart: unless-stopped
+
+  # NEW: AI Recommendation Service
+  ai-api:
+    build:
+      context: ./ai-api
+      dockerfile: Dockerfile
+    container_name: moviemate-ai-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - moviemate-network
+    restart: unless-stopped
+
+networks:
+  moviemate-network:
+    driver: bridge

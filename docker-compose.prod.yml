@@ -1,0 +1,58 @@
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    networks:
+      - moviemate-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://api.159.223.88.96.com/api
+      - NEXT_PUBLIC_BACKEND_URL=http://api.159.223.88.96.com
+      - NEXT_PUBLIC_TMDB_IMAGE_BASE=https://image.tmdb.org/t/p/w500
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=BPyHEfVaSEggfA0XDLyIer5y9l5rwKJUA0WrOFV4PyAb3A1zOebatkg2zd08XLzCLzgBnuEjwDy6jgsZttW-vlg
+      - NEXT_PUBLIC_AI_API_URL=http://ai.159.223.88.96.com
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - moviemate-network
+
+  ai-api:
+    build:
+      context: ./ai-api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    restart: unless-stopped
+    networks:
+      - moviemate-network
+
+networks:
+  moviemate-network:
+    driver: bridge
