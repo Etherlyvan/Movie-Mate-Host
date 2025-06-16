@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+.git
+.gitignore
+README.md
+.env
+.venv
+*.log
+# Exclude the large file if it exists
+**/cosine_similarity_matrix.npy
